@@ -7,7 +7,7 @@ the project, and that there are no other .SH files in the current directory.
 
 This program comes with ABSOLUTELY NO WARRANTY. Use at your own risk.
 
-This script is copyright 2015-16 by Patrick Mooney. It is free software, and
+This script is copyright 2015-17 by Patrick Mooney. It is free software, and
 you are welcome to redistribute it under certain conditions, according to the
 GNU general public license, either version 3 or (at your own option) any later
 version. See the file LICENSE.md for details.

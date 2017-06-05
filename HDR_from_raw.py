@@ -19,7 +19,7 @@ import os, subprocess, sys
 
 import exifread
 
-import create_HDR_script as chs     # from  https://github.com/patrick-brian-mooney/python-personal-library
+import create_HDR_script as chs     # from https://github.com/patrick-brian-mooney/python-personal-library
 
 
 force_debug = False
