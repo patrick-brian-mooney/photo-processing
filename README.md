@@ -5,7 +5,7 @@
 <abbr class="summary description" tile="date of current release">v 0.5</abbr>: <abbr class="dtstart" title='2017-06-05'>5 June 2017</abbr>
 </div>
 
-This is a collection of Python 3.X scripts I use to postprocess photos from the Linux terminal. It depends on a large number of other programs; see the docstrings for individual scripts for more information.
+<p>This is a collection of Python 3.X scripts I use to postprocess photos from the Linux terminal. It depends on a large number of other programs; see the docstrings for individual scripts for more information.</p>
 
 Use of these scripts presupposes some familiarity with Linux, Python 3, and (at least the graphical interfaces to) the command-line programs involved. 
 
