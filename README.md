@@ -5,9 +5,41 @@
 <abbr class="summary description" tile="date of current release">v 0.5</abbr>: <abbr class="dtstart" title='2017-06-05'>5 June 2017</abbr>
 </div>
 
-<p>This is a collection of Python 3.X scripts I use to postprocess photos from the Linux terminal. It depends on a large number of other programs; see the docstrings for individual scripts for more information.</p>
+<p>&nbsp;</p>
 
-Use of these scripts presupposes some familiarity with Linux, Python 3, and (at least the graphical interfaces to) the command-line programs involved. 
+<p>This is a collection of Python 3.X scripts I use to postprocess photos from the Linux terminal. It depends on a large number of other programs. It's a handy toolbox that does my post-offloading processing automatically, creates <code>bash</code> scripts that (in turn) begin to create panoramas from sets of photos; create tonemapped HDR photos from raw photos or sequences of images shot at different exposures; maintain filename mappings; and provides a quick interface to some utilities that I commonly use while sorting and processing photos.</p>
+
+The external programs required by these scripts are:
+
+<table>
+  <tr><th>program name</th><th>package name in Debian Linux</th><th>package version on my system</th></tr>
+  <tr><td><code>dcraw</code></td><td>dcraw</td><td>9.19-1.1ubuntu1</td></tr>
+  <tr><td><code>cjpeg</code></td><td>libjpeg-turbo-progs</td><td>1.3.0-0ubuntu2</td></tr>
+  <tr><td><code>exiftool</code></td><td>libimage-exiftool-perl</td><td>9.46-1</td></tr>
+  <tr><td><code>exiftran</code></td><td>exiftran</td><td>2.07-11</td></tr>
+  <tr><td><code>luminance-hdr</code></td><td>luminance-hdr</td><td>2.3.0-3build1</td></tr>
+  <tr><td><code>convert</code></td><td>imagemagick</td><td>8:6.7.7.10-6ubuntu3.7</td></tr>
+  <tr><td><code>enfuse</code></td><td>enfuse</td><td>4.1.2+dfsg-2ubuntu2</td></tr>
+  <tr><td><code>align_image_stack</code></td><td>hugin-tools</td><td>2013.0.0+dfsg-1ubuntu2</td></tr>
+  <tr><td><code>pto_gen</code></td><td>hugin-tools</td><td>2013.0.0+dfsg-1ubuntu2</td></tr>
+  <tr><td><code>cpfind</code></td><td>hugin-tools</td><td>2013.0.0+dfsg-1ubuntu2</td></tr>
+  <tr><td><code>cpclean</code></td><td>hugin-tools</td><td>2013.0.0+dfsg-1ubuntu2</td></tr>
+  <tr><td><code>linefind</code></td><td>hugin-tools</td><td>2013.0.0+dfsg-1ubuntu2</td></tr>
+  <tr><td><code>autooptimiser</code></td><td>hugin-tools</td><td>2013.0.0+dfsg-1ubuntu2</td></tr>
+  <tr><td><code>pano_modify</code></td><td>hugin-tools</td><td>2013.0.0+dfsg-1ubuntu2</td></tr>
+  <tr><td><code>hugin_executor</code></td><td>?</td><td>?</td></tr>
+</table>
+
+There are also several Python modules outside of the standard library required by these scripts:
+
+<ul>
+  <li><code><a rel="muse" href="https://pypi.python.org/pypi/ExifRead">exifread</a></code></li> (or install with <code>[sudo] pip[3] [-U] install exifread</code>)</li>
+  <li><code><a rel="muse" href="https://python-pillow.org/">pillow</a></code></li> (or install with <code>[sudo] pip[3] [-U] install Pillow</code>)</li>
+  <li><code><a rel="muse" href="https://docs.python.org/3/library/tkinter.html">tkinter</a></code></li>
+  <li><code><a rel="muse" href="https://github.com/patrick-brian-mooney/python-personal-library/blob/master/patrick_logger.py">patrick_logger</a></code></li>
+</ul>
+
+Use of these scripts presupposes some familiarity with Linux, Python 3, and (at least the graphical interfaces to) the command-line programs involved.
 
 There will hopefully be a series of write-ups later about how I use this series of scripts, but for now, here's my postprocessing workflow:
 
