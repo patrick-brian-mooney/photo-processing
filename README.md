@@ -35,11 +35,24 @@ There are also several Python modules outside of the standard library required b
 <ul>
   <li><code><a rel="muse" href="https://pypi.python.org/pypi/ExifRead">exifread</a></code></li> (or install with <code>[sudo] pip[3] [-U] install exifread</code>)</li>
   <li><code><a rel="muse" href="https://python-pillow.org/">pillow</a></code></li> (or install with <code>[sudo] pip[3] [-U] install Pillow</code>)</li>
-  <li><code><a rel="muse" href="https://docs.python.org/3/library/tkinter.html">tkinter</a></code></li>
+  <li><code><a rel="muse" href="https://docs.python.org/3/library/tkinter.html">tkinter</a></code> (which is almost, but not quite, standard)</li>
   <li><code><a rel="muse" href="https://github.com/patrick-brian-mooney/python-personal-library/blob/master/patrick_logger.py">patrick_logger</a></code></li>
 </ul>
 
 Use of these scripts presupposes some familiarity with Linux, Python 3, and (at least the graphical interfaces to) the command-line programs involved.
+
+Contents of this directory:
+
+* `create_HDR_script.py`: A quick command-line utility to create an enfuse HDR script from the name of the first of five lexicographically sequentially named JPEG photos. It does not actually run the script. It also contains code used by other modules in this unit.
+* `create_panorama_script.py`: Creates a `bash` script that creates a PanoTools `.pto` file from all of the JPEG files in the current directory. It does not run the created script itself. The created panorama will most probably be suboptimal in *some substantial way*; this is a first step that automates some of the work but rarely produces a finished overall product.
+* `file_mappings.py`: Contains code used by other scripts in the unit to maintain the list of file mappings. Not particularly useful from the command line.
+* `HDR_from_all.py`: A convenience script that, when run, creates an enfuse HDR script for all the JPEG files in the current directory. 
+* `HDR_from_raw.py`: Creates an HDR tonemap from raw photo files. Makes some attempt to make good choices about how to tonemap the raws. 
+* `postprocess_photos.py`: Takes a collection of photos in a folder that have been dumped from various photo-creation devices and converts them into a "normalized" form. Among other actions, this means the photos are renamed based on timestamp, auto-rotated to the ostensibly correct orientation, and tonemaps HDR photos based on Magic Lantern scripts (which it rewrites) or from raw photos. Try running `./postprocess-photos.py --help` from a terminal for more information.
+* `quick_utils.py`: contains a GUI exposing various convenience functions that can be registered as an "editor" for GUI photo-viewing clients that support sending filenames to "external editors."
+* `README.md`: this file that you're reading right now.
+
+All of the code in this project is licensed under the 
 
 There will hopefully be a series of write-ups later about how I use this series of scripts, but for now, here's my postprocessing workflow:
 

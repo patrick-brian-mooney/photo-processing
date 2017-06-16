@@ -18,7 +18,7 @@ option) any later version. See the file LICENSE.md for details.
 
 import glob, os, shutil, sys
 
-total_number_of_files = 5   # Total number of input files that are referenced by default in the auto-generated enfuse script
+total_number_of_files = 5   # Total number of input files that are referenced in the auto-generated enfuse script
 debugging = False           # Be chatty about what's going on?
 
 def print_usage(exit_value=0):

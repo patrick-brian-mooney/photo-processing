@@ -96,9 +96,11 @@ import HDR_from_raw as hfr              # https://github.com/patrick-brian-moone
 
 
 debugging = False
+force_debug = False
+
 raw_must_be_paired_with_JPEG = True     # Delete raw photos that don't have a pre-existing JPEG counterpart
 delete_small_raws = True                # Delete raw photos that are paired with small JPEGs.
-maximum_sort_side_length = 5000         # If the longest side of an image is at least this long, it's not a small image.
+maximum_short_side_length = 5000        # If the longest side of an image is at least this long, it's not a small image.
 
 file_name_mappings = f_m.FilenameMapper(filename='file_names.csv')      # Maps original names to new names.
 
@@ -276,7 +278,7 @@ def list_of_raws():
         all_raws += glob.glob("*%s" % which_ext)
     return [f for f in sorted(list(set(all_raws)))]
 
-def delete_solo_raw_files():
+def delete_spurious_raw_files():
     """This function performs a few related cleanup tasks.
 
     First, it ensures that every raw file has a corresponding JPEG file. I only
@@ -301,7 +303,7 @@ def delete_solo_raw_files():
     This second action can be turned off by setting the global variable
     delete_small_raws to False. It is possible to configure how short the longer
     side of the corresponding JPEG needs to be for the raw file to be deleted: set
-    the global variable maximum_sort_side_length to the largest value that should
+    the global variable maximum_short_side_length to the largest value that should
     be considered "the longest side of a short file."
 
     This routine DOES NOT REQUIRE that a set of filename mappings be read into
@@ -315,12 +317,13 @@ def delete_solo_raw_files():
             print("Raw file '%s' has no corresponding JPEG; deleting ..." % which_raw)
             os.remove(which_raw)
     if delete_small_raws:
-        orphan_raws = [][:]
+        # orphan_raws = [][:]
         for which_raw in list_of_raws():
             corresponding_jpg = find_alt_version(which_raw, jpeg_extensions)
             if corresponding_jpg:
                 im = Image.open(corresponding_jpg)
-                if max(im.size) < maximum_sort_side_length:
+                if max(im.size) < maximum_short_side_length
+                    print("Raw file '%s' has low-resolution corresponding JPEG; deleting ..." % which_raw)
                     os.remove(which_raw)
             else:                       # We SHOULD have already covered this ...
                 os.remove(which_raw)        # ... but just for the sake of being perfectly sure ...
@@ -501,7 +504,9 @@ def hang_around():
 # OK, let's go
 if __name__ == "__main__":
 
-    os.chdir('/home/patrick/Desktop/Photos/2017-06-07')
+    if force_debug:
+        # Whatever statements actually need to be run from an IDE
+        sys.exit()
 
     if len(sys.argv) > 1:
         if sys.argv[1] == '--help' or sys.argv[1] == '-h':
@@ -523,8 +528,7 @@ if __name__ == "__main__":
     except OSError:
         pass
     empty_thumbnails()
-    if raw_must_be_paired_with_JPEG:
-        delete_solo_raw_files()
+    delete_spurious_raw_files()
     rename_photos()
     create_HDRs_from_raws()
     rotate_photos()
