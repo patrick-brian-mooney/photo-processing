@@ -322,7 +322,7 @@ def delete_spurious_raw_files():
             corresponding_jpg = find_alt_version(which_raw, jpeg_extensions)
             if corresponding_jpg:
                 im = Image.open(corresponding_jpg)
-                if max(im.size) < maximum_short_side_length
+                if max(im.size) < maximum_short_side_length:
                     print("Raw file '%s' has low-resolution corresponding JPEG; deleting ..." % which_raw)
                     os.remove(which_raw)
             else:                       # We SHOULD have already covered this ...
@@ -472,10 +472,15 @@ def run_shell_scripts():
     print("\n\n ... done running scripts.")
 
 def create_HDRs_from_raws():
-    """For every raw file, create a tonemap from it."""
-    the_raws = list_of_raws()
+    """For every raw file, create a tonemap from it, creating an intermediate
+    script along the way, which it runs in order to create the tonemap.
+
+    This routine DOES NOT REQUIRE that filename mappings have been read into
+    memory; it just operates on all of the identifiable raw photos in the current
+    directory."""
+    the_raws = sorted(list_of_raws())
     if the_raws:
-        print("\nCreating HDR JPEGs from %d raw files ...\n\n" % len(the_raws))
+        print("\nCreating HDR JPEGs (and intermediate scripts) from %d raw files ...\n\n" % len(the_raws))
         for which_raw in the_raws:
             hfr.HDR_tonemap_from_raw(which_raw)
 

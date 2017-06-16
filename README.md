@@ -36,7 +36,7 @@ There are also several Python modules outside of the standard library required b
   <li><code><a rel="muse" href="https://pypi.python.org/pypi/ExifRead">exifread</a></code></li> (or install with <code>[sudo] pip[3] [-U] install exifread</code>)</li>
   <li><code><a rel="muse" href="https://python-pillow.org/">pillow</a></code></li> (or install with <code>[sudo] pip[3] [-U] install Pillow</code>)</li>
   <li><code><a rel="muse" href="https://docs.python.org/3/library/tkinter.html">tkinter</a></code> (which is almost, but not quite, standard)</li>
-  <li><code><a rel="muse" href="https://github.com/patrick-brian-mooney/python-personal-library/blob/master/patrick_logger.py">patrick_logger</a></code></li>
+  <li><code><a rel="me" href="https://github.com/patrick-brian-mooney/python-personal-library/blob/master/patrick_logger.py">patrick_logger</a></code> and <code><a href="">text_handling</a></code> from <a rel="me" href="https://github.com/patrick-brian-mooney/python-personal-library/blob/master/text_handling.py">my personal library</a>.</li>
 </ul>
 
 Use of these scripts presupposes some familiarity with Linux, Python 3, and (at least the graphical interfaces to) the command-line programs involved.
@@ -52,7 +52,7 @@ Contents of this directory:
 * `quick_utils.py`: contains a GUI exposing various convenience functions that can be registered as an "editor" for GUI photo-viewing clients that support sending filenames to "external editors."
 * `README.md`: this file that you're reading right now.
 
-All of the code in this project is licensed under the 
+All of the code in this project is licensed under the GNU GPL, either version 3 or (at your option) any later version. See the file <a rel="muse" href="https://github.com/patrick-brian-mooney/photo-processing/blob/master/LICENSE.md">LICENSE.md</a> for more information.
 
 There will hopefully be a series of write-ups later about how I use this series of scripts, but for now, here's my postprocessing workflow:
 

@@ -9,6 +9,11 @@ a series of filename changes. Doing this requires that all filename changes are
 manually mapped through the routines in this module. I find this helpful in my
 photo-postprocessing scripts, because I want to be able to restore the files'
 original names if necessary.
+
+This script is copyright 2015-17 by Patrick Mooney. It is free software, and
+you are welcome to redistribute it under certain conditions, according to the
+GNU general public license, either version 3 or (at your own option) any later
+version. See the file LICENSE.md for details.
 """
 
 

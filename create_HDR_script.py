@@ -69,12 +69,11 @@ convert %s -quality 98 %s.JPG
 rm %s
 exiftool -tagsfromfile %s %s.JPG
 exiftool -n -Orientation=1 %s.JPG      # Output of CONVERT is already normalized; correct the JPG orientation
+rm *JPG_original
 """ % (output_file, os.path.splitext(output_file)[0],
        output_file,
        os.path.splitext(HDR_input_files[0])[0] + '.jpg', os.path.splitext(output_file)[0],
        os.path.splitext(output_file)[0])
-
-    the_script += "\nrm *JPG_original" % os.path.splitext(output_file)[0]
 
     if delete_originals:
         the_script += "\nrm %s" % ' '.join(['"%s"' % f for f in HDR_input_files])
