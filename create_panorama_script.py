@@ -50,15 +50,15 @@ option) any later version. See the file LICENSE.md for details.
 
 import os, glob, subprocess
 
-import postprocess_photos as pp     # https://github.com/patrick-brian-mooney/personal-library/blob/master/postprocess_photos.py
+import postprocess_photos as pp     # https://github.com/patrick-brian-mooney/photo-processing/blob/master/postprocess_photos.py
 
 the_files = sorted(list(set(glob.glob('*JPG') + glob.glob('*jpg'))))
 the_files_list = ' '.join(the_files)
 project_file = the_files[0] + ".pto"
 if the_files:
     the_script = """#!/usr/bin/env bash
-# This script written by Patrick Mooney's create_HDR_script.py script, see
-#     https://github.com/patrick-brian-mooney/personal-library/blob/master/create_panorama_script.py
+# This script written by Patrick Mooney's create_panorama_script.py script, see
+#     https://github.com/patrick-brian-mooney/photo-processing/blob/master/create_panorama_script.py
 pto_gen -o %s %s
 """ % (project_file, the_files_list)
     

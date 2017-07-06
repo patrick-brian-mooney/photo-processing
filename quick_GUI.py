@@ -18,9 +18,9 @@ import os, subprocess, sys
 from tkinter import *
 
 import postprocess_photos as pp
-import file_mappings as f_m
-import create_HDR_script as c_H_s
-import HDR_from_raw as H_f_r
+import file_utils as fu
+import create_HDR_script as cHs
+import HDR_from_raw as Hfr
 
 import patrick_logger               # https://github.com/patrick-brian-mooney/python-personal-library/blob/master/patrick_logger.py
 from patrick_logger import log_it
@@ -32,19 +32,19 @@ root = Tk()                         # Top-level TKinter object
 
 
 def increment_and_rename(file_list):
-    """Bump up the timestamp for each file in FILE_LIST, then rename it based on the
-    new timestamp.
+    """Bump up the timestamp for each file in FILE_LIST by one hour, then rename 
+    each file based on the new timestamp.
     """
     # root.withdraw()
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to increment_and_rename()"
     log_it("INFO: increment_and_rename() called for %d files" % len(file_list), 2)
-    mappings = f_m.FilenameMapper()
+    mappings = fu.FilenameMapper()
     mappings.read_mappings('file_list.csv')
     for f in file_list:
         log_it("INFO: incrementing timestamp on '%s' and renaming" % f, 3)
         pp._increment_timestamp([f])
-        new_name = pp.find_unique_name(pp.name_from_date(f))
+        new_name = fu.find_unique_name(fu.name_from_date(f))
         mappings.rename_and_map(f, new_name)
     mappings.write_mappings()
     sys.exit()
@@ -66,13 +66,13 @@ def decrement_and_rename(file_list):
         files_dir = os.path.dirname(file_list[0])
         if files_dir:
             os.chdir(files_dir)
-        mappings = f_m.FilenameMapper()
+        mappings = fm.FilenameMapper()
         mappings.read_mappings('file_names.csv')
         log_it("INFO: file name mappings read: %s" % mappings, 2)
         for f in file_list:
             log_it("INFO: decrementing timestamp on '%s' and renaming" % f, 3)
             pp._decrement_timestamp([f])
-            new_name = pp.find_unique_name(pp.name_from_date(f))
+            new_name = fu.find_unique_name(fu.name_from_date(f))
             mappings.rename_and_map(f, new_name)
         mappings.write_mappings()
     finally:
@@ -87,7 +87,7 @@ def delete_with_any_alternates(file_list):
     log_it("INFO: deleting files and their alternates for %d files" % len(file_list), 2)
     for f in file_list:
         log_it("INFO: deleting %s and all linked files" % f, 3)
-        for ext in sorted(list(pp.all_alternates)):
+        for ext in sorted(list(fu.all_alternates)):
             if os.path.exists('%s.%s' % (os.path.splitext(f)[0], ext)):
                 os.unlink('%s.%s' % (os.path.splitext(f)[0], ext))
         os.unlink(f)
@@ -101,10 +101,10 @@ def tonemap_raws(file_list):
     log_it("INFO: creating %d tonemaps from raw files" % len(file_list), 2)
     for f in file_list:
         log_it("INFO: trying to tonemap %s" % f, 3)
-        raw_file = pp.find_alt_version(f, pp.raw_photo_extensions)
+        raw_file = fu.find_alt_version(f, pp.raw_photo_extensions)
         if raw_file:
             log_it("INFO: identified raw photo: %s" % raw_file, 3)
-            H_f_r.HDR_tonemap_from_raw(raw_file)
+            Hfr.HDR_tonemap_from_raw(raw_file)
     sys.exit()
 
 def produce_raw_scripts(file_list):
@@ -120,10 +120,10 @@ def produce_raw_scripts(file_list):
     log_it("INFO: creating %d tonemaps from raw files" % len(file_list), 2)
     for f in file_list:
         log_it("INFO: trying to tonemap %s" % f, 3)
-        raw_file = pp.find_alt_version(f, pp.raw_photo_extensions)
+        raw_file = fu.find_alt_version(f, pp.raw_photo_extensions)
         if raw_file:
             log_it("INFO: identified raw photo: %s" % raw_file, 3)
-            _ = H_f_r.create_HDR_script(raw_file)
+            _ = Hfr.create_HDR_script(raw_file)
     sys.exit()
 
 def script_from_files(file_list):
@@ -133,7 +133,7 @@ def script_from_files(file_list):
     # root.withdraw()
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) > 1, "ERROR: you must specify at least two files to script_from_files()"
-    c_H_s.create_script_from_file_list(file_list)
+    cHs.create_script_from_file_list(file_list)
     sys.exit()
 
 def open_in_luminance(file_list):
@@ -143,7 +143,7 @@ def open_in_luminance(file_list):
     # root.withdraw()
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to open in Luminance"
-    raws = [pp.find_alt_version(x, pp.raw_photo_extensions) for x in file_list]
+    raws = [fu.find_alt_version(x, pp.raw_photo_extensions) for x in file_list]
     subprocess.call('luminance-hdr %s' % ' '.join(raws), shell=True)
     sys.exit()
 

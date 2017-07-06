@@ -47,12 +47,13 @@ Currently, it performs the following tasks:
 
 That's it. That's all it does. Current limitations include:
     * It doesn't do anything with non-JPEG images (except known raw images). it
-      does nothing with PNG, TIFF, BMP, etc.
+      does nothing with PNG, TIFF, BMP, etc. It doesn't deal with videos in any way,
+      either: not even by renaming them.
     * It only operates on the current working directory.
     * It doesn't process any Magic Lantern scripts other than the enfuse/
       enfuse+align scripts. (ARE there others?)
     * It doesn't add the -d or -i (or -x, -y, or -z; or -C) options to the
-      align line in the script, but maybe it should.
+      align line in rewritten Magic Lantern scripts, but maybe it should.
 
 Currently, it depends (directly itself, or indirectly by virtue of the scripts
 it writes) on these external programs:
@@ -85,14 +86,14 @@ option) any later version. See the file LICENSE.md for details.
 """
 
 
-import sys, subprocess, os, glob, shutil, csv, datetime, time
+import csv, datetime, glob, os, subprocess, shutil, sys, time
 
 import exifread                         # https://github.com/ianare/exif-py; sudo pip3 install exifread
 from PIL import Image                   # [sudo] pip[3] install Pillow; https://python-pillow.org/
 
-import file_mappings as f_m             # https://github.com/patrick-brian-mooney/photo-processing/
 import create_HDR_script as hdr         # https://github.com/patrick-brian-mooney/photo-processing/
 import HDR_from_raw as hfr              # https://github.com/patrick-brian-mooney/photo-processing/
+import file_utils as fu                 # https://github.com/patrick-brian-mooney/photo-processing/
 
 
 debugging = False
@@ -100,14 +101,9 @@ force_debug = False
 
 raw_must_be_paired_with_JPEG = True     # Delete raw photos that don't have a pre-existing JPEG counterpart
 delete_small_raws = True                # Delete raw photos that are paired with small JPEGs.
-maximum_short_side_length = 5000        # If the longest side of an image is at least this long, it's not a small image.
+maximum_short_side_length = 5000        # If the longest side of an image is at least this long, it's not a "small image."
 
-file_name_mappings = f_m.FilenameMapper(filename='file_names.csv')      # Maps original names to new names.
-
-raw_photo_extensions = ('CR2', 'cr2', 'DNG', 'dng', 'RAF', 'raf', 'DCR', 'dcr', 'NEF', 'nef')           # Extensions for raw photos.
-jpeg_extensions = ('jpg', 'JPG', 'jpeg', 'JPEG', 'jpe', 'JPE')
-json_extensions = ('json', 'JSON')
-all_alternates = tuple(sorted(list(raw_photo_extensions + jpeg_extensions + json_extensions)))
+file_name_mappings = fu.FilenameMapper(filename='file_names.csv')      # Maps original names to new names.
 
 
 def python_help():
@@ -118,7 +114,7 @@ def python_help():
 
         import postprocess_photos as pp
         help(pp)                        # to see the documentation for the script
-        pp.read_filename_mappinreader.__next__()gs()     # to read in the existing file_names.csv
+        pp.read_filename_mappings()     # to read in the existing file_names.csv
         pp.process_shell_scripts()
 
     This would read the existing filename mappings back into memory and rewrite the
@@ -220,64 +216,6 @@ def empty_thumbnails():
         raise           #  then let the error propagate.
     print(' ... done.\n\n')
 
-def find_unique_name(suggested_name):
-    """Given a SUGGESTED_NAME, return a version of that name that is unique in the
-    directory in which it occurs, either by (a) just returning SUGGESTED_NAME if it
-    is already unique, or (b) appending successively higher integers to the name
-    until it becomes unique.
-    """
-    fname, f_ext = os.path.splitext(suggested_name)
-    found, index = False, 0
-    while not found:
-        the_name = '%s_%d%s' % (fname, index, f_ext) if (index > 0) else suggested_name
-        if os.path.exists(the_name):
-            index += 1          # Bump the counter and try again
-        else:
-            found = True        # Signal we're done
-    return the_name
-
-def name_from_date(which_file):
-    """Get a filename for a photo based on the date the photo was taken. Try several
-    possible ways to get the date; if none works, just guess based on filename.
-    """
-    with open(which_file, 'rb') as f:
-        tags = exifread.process_file(f, details=False)    # details=False means don't parse thumbs or other slow data we don't need.
-        try:
-            dt = tags['EXIF DateTimeOriginal'].values
-        except KeyError:
-            try:
-                dt = tags['Image DateTime'].values
-            except KeyError:            # Sigh. Not all of my image-generating devices generate EXIF info in all circumstances.
-                dt = which_file         # At this point, just guess based on filename.
-        dt = ''.join([char for char in dt if char.isdigit()])
-        dt = dt.ljust(14)   # Even if it's just gibberish, make sure it's long enough gibberish
-    return '%s-%s-%s_%s_%s_%s.jpg' % (dt[0:4], dt[4:6], dt[6:8], dt[8:10], dt[10:12], dt[12:14])
-
-def find_alt_version(orig_name, alternate_extensions):
-    """Check to see if there is an alternate version of this file (e.g., a raw file
-    corresponding to a JPEG). This logic depends entirely on equivalent filenames
-    with differing extensions. If so, return its name; otherwise, return None.
-
-    ALTERNATE_EXTENSIONS is a list (or tuple) of other extensions to check for.
-    This list (or tuple, or set, or ...) is checked in order, and the first file
-    found with a matching extension is considered to be the match we're looking for,
-    even if there are alternate versions. That is to say: there is no effort made to
-    choose the "best" version, except insofar as the earliest extension listed is
-    assumed to belong to the "best" file.
-    """
-    for whichext in alternate_extensions:
-        altfile = os.path.splitext(orig_name)[0] + '.' + whichext
-        if os.path.exists(altfile):
-            return altfile
-    return None                 # If we didn't find one ...
-
-def list_of_raws():
-    """Get a list of all raw files in the current directory."""
-    all_raws = [][:]
-    for which_ext in raw_photo_extensions:
-        all_raws += glob.glob("*%s" % which_ext)
-    return [f for f in sorted(list(set(all_raws)))]
-
 def delete_spurious_raw_files():
     """This function performs a few related cleanup tasks.
 
@@ -312,14 +250,14 @@ def delete_spurious_raw_files():
     """
     # First, delete any raw files that do not have a corresponding JPEG.
     if raw_must_be_paired_with_JPEG:
-        orphan_raws = [f for f in list_of_raws() if not find_alt_version(f, jpeg_extensions)]
+        orphan_raws = [f for f in fu.list_of_raws() if not fu.find_alt_version(f, fu.jpeg_extensions)]
         for which_raw in orphan_raws:
             print("Raw file '%s' has no corresponding JPEG; deleting ..." % which_raw)
             os.remove(which_raw)
     if delete_small_raws:
         # orphan_raws = [][:]
-        for which_raw in list_of_raws():
-            corresponding_jpg = find_alt_version(which_raw, jpeg_extensions)
+        for which_raw in fu.list_of_raws():
+            corresponding_jpg = fu.find_alt_version(which_raw, fu.jpeg_extensions)
             if corresponding_jpg:
                 im = Image.open(corresponding_jpg)
                 if max(im.size) < maximum_short_side_length:
@@ -345,7 +283,7 @@ def rename_photos():
         # First, get a list of all relevant files and (as best we can determine) when they were shot.
         file_list = [].copy()
         for which_image in glob.glob('*jpg') + glob.glob('*JPG'):
-            new_name = name_from_date(which_image)
+            new_name = fu.name_from_date(which_image)
             file_list.append([new_name, which_image])
 
         # OK, now sort that list (twice). First, sort by original filename (globbing filenames does not preserve this). Then, sort again by
@@ -361,14 +299,14 @@ def rename_photos():
                 fname, f_ext = os.path.splitext(which_file[0])
                 index = 0
                 while which_file:
-                    new_name = find_unique_name(name_from_date(which_file[1])).strip()
+                    new_name = fu.find_unique_name(fu.name_from_date(which_file[1])).strip()
                     if new_name != which_file[1]:
                         file_name_mappings.rename_and_map(which_file[1], new_name)
-                        raw_version = find_alt_version(which_file[1], raw_photo_extensions)
+                        raw_version = fu.find_alt_version(which_file[1], fu.raw_photo_extensions)
                         if raw_version:
                             new_raw = os.path.splitext(new_name)[0] + os.path.splitext(raw_version)[1]
                             file_name_mappings.rename_and_map(raw_version, new_raw)
-                        json_version = find_alt_version(which_file[1], json_extensions)
+                        json_version = fu.find_alt_version(which_file[1], fu.json_extensions)
                         if json_version:
                             file_name_mappings.rename_and_map(json_version, os.path.splitext(new_name)[0] + '.json')
                         which_file = None           # Signal we're done with this item if successful
@@ -478,7 +416,7 @@ def create_HDRs_from_raws():
     This routine DOES NOT REQUIRE that filename mappings have been read into
     memory; it just operates on all of the identifiable raw photos in the current
     directory."""
-    the_raws = sorted(list_of_raws())
+    the_raws = sorted(fu.list_of_raws())
     if the_raws:
         print("\nCreating HDR JPEGs (and intermediate scripts) from %d raw files ...\n\n" % len(the_raws))
         for which_raw in the_raws:
@@ -510,7 +448,7 @@ def hang_around():
 if __name__ == "__main__":
 
     if force_debug:
-        # Whatever statements actually need to be run from an IDE
+        # Whatever statements actually need to be run in an IDE go here.
         sys.exit()
 
     if len(sys.argv) > 1:

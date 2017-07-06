@@ -51,7 +51,10 @@ def create_script_from_file_list(HDR_input_files, file_to_move=None, file_to_del
 # %s from %s ... %s with aligning first
 # This script written by Patrick Mooney's create_HDR_script.py script, see
 #     https://github.com/patrick-brian-mooney/photo-processing/
-""" % (output_file, HDR_input_files[0], HDR_input_files[-1])
+
+OLDDIR=$(pwd)
+cd "%s"
+""" % (output_file, HDR_input_files[0], HDR_input_files[-1], os.path.split(os.path.realpath(HDR_input_files[0]))[0])
 
     if suppress_align:
         for index, value in enumerate(HDR_input_files):
@@ -68,7 +71,7 @@ rm HDR_AIS_%s*
 convert %s -quality 98 %s.JPG
 rm %s
 exiftool -tagsfromfile %s %s.JPG
-exiftool -n -Orientation=1 %s.JPG      # Output of CONVERT is already normalized; correct the JPG orientation
+exiftool -n -Orientation=1 %s.JPG      # Output of CONVERT is already oriented; correct the JPG orientation
 rm *JPG_original
 """ % (output_file, os.path.splitext(output_file)[0],
        output_file,
@@ -79,6 +82,8 @@ rm *JPG_original
         the_script += "\nrm %s" % ' '.join(['"%s"' % f for f in HDR_input_files])
     else:
         the_script += "\nmv %s HDR_components/" % ' '.join(['"%s"' % f for f in HDR_input_files])
+    
+    the_script += "\n\ncd $OLDDIR\n"
 
     script_file_name = os.path.splitext(output_file)[0] + '.SH'
     with open(script_file_name, mode='w') as script_file:
