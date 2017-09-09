@@ -9,7 +9,7 @@ own most common panorama stitching process. It leaves behind a .pto file that
 can be modified by hand if the results aren't satisfactory, and in any case,
 my experience is that, even with the script getting many things wrong, starting
 off automatically with this script is faster overall for large projects than
-doing everything manually would be.
+doing everything manually from the beginning would be.
 
 A short (i.e., non-comprehensive) list of choices the output script makes for
 you would include:

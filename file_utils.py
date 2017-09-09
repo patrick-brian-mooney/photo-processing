@@ -95,7 +95,7 @@ def list_of_raws():
 Note that there is no claim made to maintain intermediate names the file may
 have had. The intent is to make it possible to restore the original name of a
 set of files after a series of filename changes. Doing this requires that all
-filename changes are manually mapped through the routines in this module. I
+filename changes are manually mapped through the routines in this class. I
 find this helpful in my photo-postprocessing scripts, because I want to be able
 to restore the files' original names if necessary.
 """
@@ -112,11 +112,11 @@ class FilenameMapper(object):
         else:
             self.mapping = {}.copy()
         self.filename = filename
-    
+
     def __repr__(self):
         """Return a printable representation."""
         ret = "< FilenameMapper object (mapping %d files) " % len(self.mapping)
-        ret += "(stored in %s) " % self.filename if self.filename else "(not tied to a file) "
+        ret += "(stored in '%s') " % self.filename if self.filename else "(not tied to a file) "
         ret += ">"
         return ret
 
@@ -135,11 +135,14 @@ class FilenameMapper(object):
         This procedure also registers FILENAME as the filename associated with the
         .csv file used to maintain the object's data.
         """
-        with open(filename, newline='') as infile:
-            reader = csv.reader(infile)
-            reader.__next__()                                                   # Skip the header row.
-            for key, value in {rows[0]:rows[1] for rows in reader}.items():
-                self.add_mapping(key, value)
+        try:        
+            with open(filename, newline='') as infile:
+                reader = csv.reader(infile)
+                reader.__next__()                                                   # Skip the header row.
+                for key, value in {rows[0]:rows[1] for rows in reader}.items():
+                    self.add_mapping(key, value)
+        except FileNotFoundError:
+            pass                    # Oh well, no mappings file found to read from.
         self.filename = filename
 
     def add_mapping(self, orig_name, new_name):

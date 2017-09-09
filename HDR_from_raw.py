@@ -95,7 +95,7 @@ def get_smoothed_image_histogram(image_filename):
     h = [ v if v > minimum_threshold else 0 for v in h ]            # Anything below threshold is dropped to zero
     return h
 
-clipping_threshold = 16     # If >= half the image's data is within this dist. of the relevant edge, we'll consider it clipped.  
+clipping_threshold = 16     # If >= half the image's data is within this dist. of the relevant edge, we'll consider it clipped.
 
 def is_right_edge_clipping(histo):
     """Returns True if the histogram HISTO is clipped at the right edge, or False
@@ -155,17 +155,23 @@ def create_HDR_script(rawfile):
                     found_end = True
                     os.unlink(shift_mappings[current_shift])
                     del(shift_mappings[current_shift])
-            else:            
+            else:
                 found_beginning = not is_right_edge_clipping(h)
             current_shift -= 1
         # Now, start at the bottom, and find the lightest useful image
-        current_shift, found_end = min(shift_mappings.keys()), False
+        current_shift, found_beginning, found_end = min(shift_mappings.keys()), False, False
         while current_shift <= max(shifts):
+            h = get_smoothed_image_histogram(shift_mappings[current_shift])
             if found_end:
                 os.unlink(shift_mappings[current_shift])
                 del(shift_mappings[current_shift])
+            elif found_beginning:
+                if is_right_edge_clipping(h):
+                    found_end = True
+                    os.unlink(shift_mappings[current_shift])
+                    del(shift_mappings[current_shift])
             else:
-                found_end = no_lower_quarter_data(get_smoothed_image_histogram(shift_mappings[current_shift]))
+                found_beginning = not is_left_edge_clipping(h)
             current_shift += 1
 
         selected_files = list(shift_mappings.values())
@@ -179,8 +185,6 @@ def create_HDR_script(rawfile):
             files_to_merge.sort()
         chs.create_script_from_file_list(files_to_merge, delete_originals=True, suppress_align=True)
         return os.path.abspath(os.path.splitext(files_to_merge[0])[0] + '_HDR.SH')
-    except BaseException as e:
-        pass
     finally:
         os.chdir(olddir)
 
@@ -191,7 +195,7 @@ def HDR_tonemap_from_raw(rawfile):
 if __name__ == "__main__":
     if force_debug:
         import glob
-        sys.argv[1:] = sorted(glob.glob('/home/patrick/Desktop/Photos/2017-05-30/*CR2'))
+        sys.argv[1:] = sorted(glob.glob('/home/patrick/Desktop/working/temp/*CR2'))
     if len(sys.argv) == 1 or sys.argv[1] in ['--help', '-h']:
         print(__doc__)
         sys.exit(0)

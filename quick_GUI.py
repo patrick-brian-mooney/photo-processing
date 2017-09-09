@@ -66,7 +66,7 @@ def decrement_and_rename(file_list):
         files_dir = os.path.dirname(file_list[0])
         if files_dir:
             os.chdir(files_dir)
-        mappings = fm.FilenameMapper()
+        mappings = fu.FilenameMapper()
         mappings.read_mappings('file_names.csv')
         log_it("INFO: file name mappings read: %s" % mappings, 2)
         for f in file_list:
@@ -101,7 +101,7 @@ def tonemap_raws(file_list):
     log_it("INFO: creating %d tonemaps from raw files" % len(file_list), 2)
     for f in file_list:
         log_it("INFO: trying to tonemap %s" % f, 3)
-        raw_file = fu.find_alt_version(f, pp.raw_photo_extensions)
+        raw_file = fu.find_alt_version(f, fu.raw_photo_extensions)
         if raw_file:
             log_it("INFO: identified raw photo: %s" % raw_file, 3)
             Hfr.HDR_tonemap_from_raw(raw_file)
@@ -120,7 +120,7 @@ def produce_raw_scripts(file_list):
     log_it("INFO: creating %d tonemaps from raw files" % len(file_list), 2)
     for f in file_list:
         log_it("INFO: trying to tonemap %s" % f, 3)
-        raw_file = fu.find_alt_version(f, pp.raw_photo_extensions)
+        raw_file = fu.find_alt_version(f, fu.raw_photo_extensions)
         if raw_file:
             log_it("INFO: identified raw photo: %s" % raw_file, 3)
             _ = Hfr.create_HDR_script(raw_file)
@@ -143,7 +143,7 @@ def open_in_luminance(file_list):
     # root.withdraw()
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to open in Luminance"
-    raws = [fu.find_alt_version(x, pp.raw_photo_extensions) for x in file_list]
+    raws = [fu.find_alt_version(x, fu.raw_photo_extensions) for x in file_list]
     subprocess.call('luminance-hdr %s' % ' '.join(raws), shell=True)
     sys.exit()
 
@@ -162,6 +162,16 @@ def regen_thumb(file_list):
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to regen_thumb()"
     subprocess.call('exiftran -ig %s' % ' '.join(file_list), shell=True)
+    sys.exit()
+    
+def resize_files(file_list, longest_side):
+    """Proportionally resize each file in FILE_LIST so that its longest side is the
+    length specified by LONGEST_SIDE. 
+    """
+    assert isinstance(file_list, (list, tuple))
+    assert len(file_list) >= 1, "ERROR: you must specify at least one file to resize_files()"
+    for f in file_list:
+        subprocess.call('mogrify -resize %dx%d "%s"' % (longest_side, longest_side, f), shell=True)
     sys.exit()
 
 if __name__ == "__main__":
@@ -185,6 +195,13 @@ if __name__ == "__main__":
     button = Button(root, text="Delete, and delete all alternate files", command=lambda: delete_with_any_alternates(file_list))
     button.pack(side=TOP, fill=X)
 
+    label = Label(root, text='\n\nResize')
+    label.pack(side=TOP, fill=X)
+    button = Button(root, text="Resize to 720p", command=lambda: resize_files(file_list, 720))
+    button.pack(side=TOP, fill=X)    
+    button = Button(root, text="Resize to 1920p", command=lambda: resize_files(file_list, 1920))
+    button.pack(side=TOP, fill=X)    
+    
     label = Label(root, text='\n\nEXIF-aware JPEG transformations')
     label.pack(side=TOP, fill=X)
     button = Button(root, text="Rotate automatically", command=lambda: exif_rotate(file_list, "a"))
@@ -195,18 +212,18 @@ if __name__ == "__main__":
     button.pack(side=TOP, fill=X)
     button = Button(root, text="Rotate 180 degrees", command=lambda: exif_rotate(file_list, "1"))
     button.pack(side=TOP, fill=X)
-    button = Button(root, text="Regenerate JPEG thumbnail", command=lambda: open_in_luminance(file_list))
+    button = Button(root, text="Regenerate JPEG thumbnail", command=lambda: regen_thumb(file_list))
     button.pack(side=TOP, fill=X)
 
     label = Label(root, text='\n\nHDR Scripting')
     label.pack(side=TOP, fill=X)
     button = Button(root, text="Create HDR script for all selected files", command=lambda: script_from_files(file_list))
     button.pack(side=TOP, fill=X)
-    button = Button(root, text="HDR tonemapping script from corresponding raw", command=lambda: produce_raw_scripts(file_list))
+    button = Button(root, text="HDR tonemap script(s) from corresponding raw(s)", command=lambda: produce_raw_scripts(file_list))
     button.pack(side=TOP, fill=X)
-    button = Button(root, text="HDR tonemap from corresponding raw", command=lambda: tonemap_raws(file_list))
+    button = Button(root, text="HDR tonemap(s) from corresponding raw(s)", command=lambda: tonemap_raws(file_list))
     button.pack(side=TOP, fill=X)
-    button = Button(root, text="Open corresponding raw in Luminance", command=lambda: open_in_luminance(file_list))
+    button = Button(root, text="Open corresponding raw(s) in Luminance", command=lambda: open_in_luminance(file_list))
     button.pack(side=TOP, fill=X)
 
     root.mainloop()

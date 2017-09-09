@@ -286,9 +286,9 @@ def rename_photos():
             new_name = fu.name_from_date(which_image)
             file_list.append([new_name, which_image])
 
-        # OK, now sort that list (twice). First, sort by original filename (globbing filenames does not preserve this). Then, sort again by
-        # datetime string. Since Python sorts are stable, the second sort will preserve the order of the first when values for the sort-by
-        # key for the second sort are identical.
+        # OK, now sort that list (twice). First, sort by original filename (globbing filenames does not preserve this). Then, sort
+        # again by datetime string. Since Python sorts are stable, the second sort will preserve the order of the first when values
+        # for the sort-by key for the second sort are identical.
         file_list.sort(key=lambda item: item[1])
         file_list.sort(key=lambda item: item[0])
 
@@ -362,8 +362,8 @@ def process_shell_scripts():
             with open(which_script, 'r') as the_script:
                 script_lines = the_script.readlines()
                 if script_lines[4].startswith('align_image_stack'):         # It's an align-first script, with 8 lines, 5 non-blank.
-                    # Getting the script filenames takes some processing time here. It assumes a familiarity with the format of this line
-                    # in ML firmware version 1.0.2-ml-v2.3, which currently looks like this:
+                    # Getting the script filenames takes some processing time here. It assumes a familiarity with the format of this
+                    # line in ML firmware version 1.0.2-ml-v2.3, which currently looks like this:
                     #
                     #    align_image_stack -m -a OUTPUT_PREFIX INFILE1.JPG INFILE2.JPG [...]
 
@@ -376,7 +376,7 @@ def process_shell_scripts():
                     #   [4 to end] the names of the input files.
                     HDR_input_files = [file_name_mappings.mapping[which_file] if which_file in file_name_mappings.mapping
                                        else which_file
-                                       for which_file in script_lines[4].split()[4:]]
+                                       for which_file in script_lines[4].split()[4:] ]
                 else:                                       # It's a just-call-enfuse script, with 6 lines, 3 non-blank.
                     new_script = script_lines[:-1]          # Tokenize and get the names of the input files.
                     last_line_tokens = script_lines[-1].split()
@@ -449,7 +449,8 @@ if __name__ == "__main__":
 
     if force_debug:
         # Whatever statements actually need to be run in an IDE go here.
-        sys.exit()
+        os.chdir('/home/patrick/Photos/2017-07-30/')
+        # sys.exit()
 
     if len(sys.argv) > 1:
         if sys.argv[1] == '--help' or sys.argv[1] == '-h':
