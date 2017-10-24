@@ -46,9 +46,8 @@ Currently, it performs the following tasks:
              separate HDR_components folder.
 
 That's it. That's all it does. Current limitations include:
-    * It doesn't do anything with non-JPEG images (except known raw images). it
-      does nothing with PNG, TIFF, BMP, etc. It doesn't deal with videos in any way,
-      either: not even by renaming them.
+    * It doesn't do anything with non-JPEG images, except for known raw images
+      and videos. it does nothing with PNG, TIFF, BMP, etc.
     * It only operates on the current working directory.
     * It doesn't process any Magic Lantern scripts other than the enfuse/
       enfuse+align scripts. (ARE there others?)
@@ -97,9 +96,9 @@ import file_utils as fu                 # https://github.com/patrick-brian-moone
 
 
 debugging = False
-force_debug = False
+force_debug = True
 
-raw_must_be_paired_with_JPEG = True     # Delete raw photos that don't have a pre-existing JPEG counterpart
+raw_must_be_paired_with_JPEG = False    # Delete raw photos that don't have a pre-existing JPEG counterpart
 delete_small_raws = True                # Delete raw photos that are paired with small JPEGs.
 maximum_short_side_length = 5000        # If the longest side of an image is at least this long, it's not a "small image."
 
@@ -282,7 +281,7 @@ def rename_photos():
     try:
         # First, get a list of all relevant files and (as best we can determine) when they were shot.
         file_list = [].copy()
-        for which_image in glob.glob('*jpg') + glob.glob('*JPG'):
+        for which_image in sorted(list(set(glob.glob('*jpg') + glob.glob('*JPG') + glob.glob("*MOV") + glob.glob("*mov")))):
             new_name = fu.name_from_date(which_image)
             file_list.append([new_name, which_image])
 
@@ -296,20 +295,16 @@ def rename_photos():
         try:
             while len(file_list) > 0:
                 which_file = file_list.pop(0)
-                fname, f_ext = os.path.splitext(which_file[0])
-                index = 0
-                while which_file:
-                    new_name = fu.find_unique_name(fu.name_from_date(which_file[1])).strip()
-                    if new_name != which_file[1]:
-                        file_name_mappings.rename_and_map(which_file[1], new_name)
-                        raw_version = fu.find_alt_version(which_file[1], fu.raw_photo_extensions)
-                        if raw_version:
-                            new_raw = os.path.splitext(new_name)[0] + os.path.splitext(raw_version)[1]
-                            file_name_mappings.rename_and_map(raw_version, new_raw)
-                        json_version = fu.find_alt_version(which_file[1], fu.json_extensions)
-                        if json_version:
-                            file_name_mappings.rename_and_map(json_version, os.path.splitext(new_name)[0] + '.json')
-                        which_file = None           # Signal we're done with this item if successful
+                new_name = fu.find_unique_name(fu.name_from_date(which_file[1])).strip()
+                if new_name != which_file[1]:
+                    file_name_mappings.rename_and_map(which_file[1], new_name)
+                    raw_version = fu.find_alt_version(which_file[1], fu.raw_photo_extensions)
+                    if raw_version:
+                        new_raw = os.path.splitext(new_name)[0] + os.path.splitext(raw_version)[1]
+                        file_name_mappings.rename_and_map(raw_version, new_raw)
+                    json_version = fu.find_alt_version(which_file[1], fu.json_extensions)
+                    if json_version:
+                        file_name_mappings.rename_and_map(json_version, os.path.splitext(new_name)[0] + '.json')
         finally:
             file_name_mappings.write_mappings()     # Write what we've got, no matter what.
     except:
@@ -449,7 +444,7 @@ if __name__ == "__main__":
 
     if force_debug:
         # Whatever statements actually need to be run in an IDE go here.
-        os.chdir('/home/patrick/Photos/2017-07-30/')
+        os.chdir('/home/patrick/Photos/2017-10-22')
         # sys.exit()
 
     if len(sys.argv) > 1:

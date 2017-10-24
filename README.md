@@ -77,5 +77,10 @@ There will hopefully be a series of write-ups later about how I use this series 
 4. I re-run any scripts that need to be re-run as a result of step 3, if this has not already happened concurrently during step 3.
 5. Eventually, the panorama scripts created by `create_panorama.py` get run, usually on a separate laptop, and either the results are copied into the `to be processed` folder, or the intermediate panorama files are adjusted and set to run through again, or else new scripts are run to re-create the panorama projects before they are set to run through again, or the project as a whole is declared not to be worth processing and deleted.
 6. Photos are drawn out of the appropriate folders and uploaded to Flickr and, occasionally, various other places.
-7. Photos pop out of the `to be processed` folder periodically and processed, then are uploaded to my DeviantArt gallery. 
+7. Photos pop out of the `to be processed` folder periodically and are processed, then are uploaded to my DeviantArt gallery. 
 
+Known Problems
+--------------
+
+* `HDR_from_raw.py` does (a fair amount of) unnecessary work: it copies EXIF tags into create JPEGs and modifies them to indicate the effective ISO of modified shots, but this information is entirely discarded when the photos are converted to bitmapped files that cannot store EXIF metadata. Moreover, it makes errors while doing so: it doesn't correctly pass the detected ISO of the original photo to the new photo.
+* There's still more tweaking to be done on detecting which automatically produced exposures should be included in the HDR photos created by `HDR_from_raw.py`: currently (18 September 2017) my suspicion is that another exposure (or perhaps two) should be dropped from the darkest end of the spectrum, but there's more experimenting to be done first.

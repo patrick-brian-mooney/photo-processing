@@ -190,7 +190,8 @@ def create_HDR_script(rawfile):
 
 def HDR_tonemap_from_raw(rawfile):
     """Write an HDR-creation script for RAWFILE, then run it."""
-    subprocess.call(os.path.abspath(create_HDR_script(rawfile)), shell=True)
+    raw_script = create_HDR_script(rawfile)
+    subprocess.call(os.path.abspath(raw_script), shell=True)
 
 if __name__ == "__main__":
     if force_debug:

@@ -37,7 +37,7 @@ def find_unique_name(suggested_name):
     until it becomes unique.
     """
     fname, f_ext = os.path.splitext(suggested_name)
-    found, index = False, 0
+    found, index = False, 1
     while not found:
         the_name = '%s_%d%s' % (fname, index, f_ext) if (index > 0) else suggested_name
         if os.path.exists(the_name):
@@ -61,7 +61,7 @@ def name_from_date(which_file):
                 dt = which_file         # At this point, just guess based on filename.
         dt = ''.join([char for char in dt if char.isdigit()])
         dt = dt.ljust(14)   # Even if it's just gibberish, make sure it's long enough gibberish
-    return '%s-%s-%s_%s_%s_%s.jpg' % (dt[0:4], dt[4:6], dt[6:8], dt[8:10], dt[10:12], dt[12:14])
+    return '%s-%s-%s_%s_%s_%s%s' % (dt[0:4], dt[4:6], dt[6:8], dt[8:10], dt[10:12], dt[12:14], os.path.splitext(which_file)[1].lower())
 
 def find_alt_version(orig_name, alternate_extensions):
     """Check to see if there is an alternate version of this file (e.g., a raw file
@@ -135,7 +135,7 @@ class FilenameMapper(object):
         This procedure also registers FILENAME as the filename associated with the
         .csv file used to maintain the object's data.
         """
-        try:        
+        try:
             with open(filename, newline='') as infile:
                 reader = csv.reader(infile)
                 reader.__next__()                                                   # Skip the header row.
