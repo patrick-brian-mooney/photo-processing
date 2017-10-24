@@ -96,7 +96,7 @@ import file_utils as fu                 # https://github.com/patrick-brian-moone
 
 
 debugging = False
-force_debug = True
+force_debug = False
 
 raw_must_be_paired_with_JPEG = False    # Delete raw photos that don't have a pre-existing JPEG counterpart
 delete_small_raws = True                # Delete raw photos that are paired with small JPEGs.
@@ -444,7 +444,7 @@ if __name__ == "__main__":
 
     if force_debug:
         # Whatever statements actually need to be run in an IDE go here.
-        os.chdir('/home/patrick/Photos/2017-10-22')
+        os.chdir('/home/patrick/Photos/2017-09-30')
         # sys.exit()
 
     if len(sys.argv) > 1:

@@ -3,7 +3,7 @@
 """A series of file-related utilities for my photo postprocessing scripts"""
 
 
-import csv, glob, os, sys
+import csv, datetime, glob, os, sys
 
 import exifread                     # [sudo] pip[3] install exifread; or, https://pypi.python.org/pypi/ExifRead
 
@@ -60,6 +60,8 @@ def name_from_date(which_file):
             except KeyError:            # Sigh. Not all of my image-generating devices generate EXIF info in all circumstances.
                 dt = which_file         # At this point, just guess based on filename.
         dt = ''.join([char for char in dt if char.isdigit()])
+        if len(dt) < 8:     # then we got filename gibberish, not a meaningful date.
+            dt = ''.join([char for char in datetime.datetime.fromtimestamp(os.path.getmtime(which_file)).isoformat() if char.isdigit()])
         dt = dt.ljust(14)   # Even if it's just gibberish, make sure it's long enough gibberish
     return '%s-%s-%s_%s_%s_%s%s' % (dt[0:4], dt[4:6], dt[6:8], dt[8:10], dt[10:12], dt[12:14], os.path.splitext(which_file)[1].lower())
 
