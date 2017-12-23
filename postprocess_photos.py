@@ -330,7 +330,7 @@ def rotate_photos():
     current folder.
     """
     print('Auto-rotating images ...\n\n')
-    subprocess.call('exiftran -aigp %s' % ' '.join(glob.glob('*jpg') + glob.glob('*JPG')), shell=True)
+    subprocess.call('exiftran -aigp %s' % ' '.join(sorted(glob.glob('*jpg') + glob.glob('*JPG'))), shell=True)
 
 def process_shell_scripts():
     """Rewrite any shell scripts created by Magic Lantern.

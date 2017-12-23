@@ -28,13 +28,13 @@ you would include:
       problems on its own;
     * running CPClean with default parameters;
     * automatically optimizing control points, which is almost certainly a
-      good idea in most cases;
+      good idea in most, but not all, cases;
     * trying to find a suitable projection type, which is often basically
       successful but rarely makes the absolute best possible choice;  
     * doing photometric optimization, which wastes time if the shots were
-      exposed manually;
+      manually shot at the same exposure;
     * trying to find vertical control points, which is often successful and
-      frequently a good idea, though the process can go astray 
+      frequently a good idea, though the process can go astray;
     * automatically calculating ostensibly optimal canvas and crop sizes; and
     * using hugin_executor as the stitching program (PTBatchGUI might also be
       used for this purpose).
