@@ -25,17 +25,15 @@ if __name__ == "__main__":
         try:
             olddir = os.getcwd()
             os.chdir(i)
-            print("Currently checking directory:  " + i, end=" ")
+            print("Currently checking directory:  " + i)
             if len(glob.glob('*jpg') + glob.glob("*JPG")) > 0:
-                print("JPEG files found!", end=" ")
+                print("  JPEG files found!", end=" ")
                 if len(glob.glob("*pto")) > 0:
                     print("But there's an existing project file! Skipping...")
                 else:
-                    print("Creating new project file ...")
+                    print("Creating new project script ...")
                     subprocess.call('create_panorama_script.py', shell=True)
-            else:
-                print()
         finally:
             os.chdir(olddir)
-            time.sleep(0.5)
+            time.sleep(0.1)
 
