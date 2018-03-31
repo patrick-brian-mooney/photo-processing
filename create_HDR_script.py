@@ -16,7 +16,7 @@ according to the GNU general public license, either version 3 or (at your own
 option) any later version. See the file LICENSE.md for details.
 """
 
-import glob, os, shutil, sys
+import glob, os, shlex, shutil, sys
 
 total_number_of_files = 5   # Total number of input files that are referenced in the auto-generated enfuse script
 debugging = False           # Be chatty about what's going on?
@@ -54,7 +54,7 @@ def create_script_from_file_list(HDR_input_files, file_to_move=None, file_to_del
 
 OLDDIR=$(pwd)
 cd "%s"
-""" % (output_file, HDR_input_files[0], HDR_input_files[-1], os.path.split(os.path.realpath(HDR_input_files[0]))[0])
+""" % (output_file, HDR_input_files[0], HDR_input_files[-1], shlex.quote(os.path.split(os.path.realpath(HDR_input_files[0]))[0]))
 
     if suppress_align:
         for index, value in enumerate(HDR_input_files):
@@ -82,7 +82,7 @@ rm *JPG_original
         the_script += "\nrm %s" % ' '.join(['"%s"' % f for f in HDR_input_files])
     else:
         the_script += "\nmv %s HDR_components/" % ' '.join(['"%s"' % f for f in HDR_input_files])
-    
+
     the_script += "\n\ncd $OLDDIR\n"
 
     script_file_name = os.path.splitext(output_file)[0] + '.SH'

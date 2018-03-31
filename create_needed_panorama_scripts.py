@@ -2,13 +2,10 @@
 # -*- coding: utf-8 -*-
 """This script starts in the current directory and recursively examines each of its
 subdirectories. It looks for directories that have JPEG files but no hugin
-project files. When it finds such a directory, it calls 
-create_panorama_script.py to create a script that will automatically create a
-hugin project file. 
-
+project files. When it finds such a directory, it callscreate_panorama_script.py to create a script that will automatically create a
+hugin project file.
 This is a utility script that is intended to work on my own hard drive, where I
-have a single directory containing multiple other directories, each of which 
-subdirectories contains a group of photos that need to be stitched into a
+have a single directory containing multiple other directories, each of whichsubdirectories contains a group of photos that need to be stitched into a
 single panorama. It's kind of a hack, but may be useful to others.
 
 This program is part of Patrick Mooney's photo postprocessing scripts; the

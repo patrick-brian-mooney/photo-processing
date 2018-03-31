@@ -12,27 +12,21 @@ max_low_brightness = 30             # Darkest pixel in bright image must have at
 def is_left_edge_clipping(histo):
     """Returns True if the histogram HISTO is clipped at the right edge, or False
     otherwise.
-    
-    Assumes that HISTO is a 256-item brightness histogram.
+       Assumes that HISTO is a 256-item brightness histogram.
     """
-    return (sum(histo[:63]) > sum(histo[63:]))    
-
-def downwards_moving_approval(image_filename, previous_image_filename=None):
+    return (sum(histo[:63]) > sum(histo[63:]))  def downwards_moving_approval(image_filename, previous_image_filename=None):
     """Given IMAGE_FILENAME, and assuming that the current goal is to proceed toward
     darker and darker images, seeking the darkest image that should be part of the
-    set of variant-exposed images to be tonemapped into a single HDR, this function  
-    returns True if the image should be included, and False if it should not be
+    set of variant-exposed images to be tonemapped into a single HDR, this function     returns True if the image should be included, and False if it should not be
     included.
-    
-    "Should be included" here means, more specifically, "no significant right-edge
+       "Should be included" here means, more specifically, "no significant right-edge
     histogram clipping, and there is at least one previous image which DOES have
     right-edge clipping." Note that, when this function returns False, the calling
     code assumes that this image is darker than the darkest image that should be
     included, i.e. that we've now found out that the previous image was the lower
     edge of the set that will be tonemapped. That is, this function is intended to
     be called repeatedly until it returns False; after that, the calling code will
-    begin to seek the upper edge of the set. 
-    """
+    begin to seek the upper edge of the set.    """
     if not is_right_edge_clipping(get_smoothed_image_histogram(image_filename)):
         return True if not previous_image_filename else is_right_edge_clipping(get_smoothed_image_histogram(previous_image_filename))
 
@@ -42,15 +36,13 @@ def upwards_moving_approval(image_filename, previous_image_filename):
     the set of variant-exposed images to be tonemapped into a single HDR, this
     function returns True if the image should be included, and False if it should
     not be included.
-    
-    "Should be included" here means, more specifically, "no significant data in the
+       "Should be included" here means, more specifically, "no significant data in the
     lower quarter of the image's histogram." Note that, when this function returns
     False, the calling code assumes that this image is darker than the darkest
     image that should be included, i.e. that we've now found out that the previous
     image was the lower edge of the set that will be tonemapped. That is, this
     function is intended to be called repeatedly until it returns False; after that,
-    the calling code will begin to seek the upper edge of the set. 
-    """
+    the calling code will begin to seek the upper edge of the set.    """
     if not right_edge_clipping(get_smoothed_image_histogram(image_filename)):
         return True if not previous_image_filename else is_right_edge_clipping(get_smoothed_image_histogram(previous_image_filename))
 

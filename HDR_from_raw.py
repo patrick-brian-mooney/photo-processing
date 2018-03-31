@@ -195,8 +195,7 @@ def HDR_tonemap_from_raw(rawfile):
 
 if __name__ == "__main__":
     if force_debug:
-        import glob
-        sys.argv[1:] = sorted(glob.glob('/home/patrick/Desktop/working/temp/*CR2'))
+        sys.argv[1:] = ['/home/patrick/Photos/2017-12-22/trip to Portland/2017-12-17_15_52_19_1.CR2']
     if len(sys.argv) == 1 or sys.argv[1] in ['--help', '-h']:
         print(__doc__)
         sys.exit(0)

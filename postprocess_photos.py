@@ -47,7 +47,7 @@ Currently, it performs the following tasks:
 
 That's it. That's all it does. Current limitations include:
     * It doesn't do anything with non-JPEG images, except for known raw images
-      and videos. it does nothing with PNG, TIFF, BMP, etc.
+      and videos. It does nothing with PNG, TIFF, BMP, etc.
     * It only operates on the current working directory.
     * It doesn't process any Magic Lantern scripts other than the enfuse/
       enfuse+align scripts. (ARE there others?)
@@ -85,7 +85,7 @@ option) any later version. See the file LICENSE.md for details.
 """
 
 
-import csv, datetime, glob, os, subprocess, shutil, sys, time
+import csv, datetime, glob, os, shlex, shutil, subprocess, sys, time
 
 import exifread                         # https://github.com/ianare/exif-py; sudo pip3 install exifread
 from PIL import Image                   # [sudo] pip[3] install Pillow; https://python-pillow.org/
@@ -95,7 +95,7 @@ import HDR_from_raw as hfr              # https://github.com/patrick-brian-moone
 import file_utils as fu                 # https://github.com/patrick-brian-mooney/photo-processing/
 
 
-debugging = False
+debugging = True
 force_debug = False
 
 raw_must_be_paired_with_JPEG = False    # Delete raw photos that don't have a pre-existing JPEG counterpart
@@ -162,12 +162,12 @@ def print_usage():
 def _increment_timestamp(file_list):
     """Add one hour to the timestamp for each file in FILE_LIST."""
     assert isinstance(file_list, (list, tuple))
-    subprocess.call('exiftool "-alldates+=1:00:00" "-FileModifyDate+=1:00:00" -overwrite_original %s' % ' '.join(file_list), shell=True)
+    subprocess.call('exiftool "-alldates+=1:00:00" "-FileModifyDate+=1:00:00" -overwrite_original %s' % ' '.join([shlex.quote(f) for f in file_list]), shell=True)
 
 def _decrement_timestamp(file_list):
     """Subtract one hour from the timestamp for each file in FILE_LIST."""
     assert isinstance(file_list, (list, tuple))
-    subprocess.call('exiftool "-alldates-=1:00:00" "-FileModifyDate-=1:00:00" -overwrite_original %s' % ' '.join(file_list), shell=True)
+    subprocess.call('exiftool "-alldates-=1:00:00" "-FileModifyDate-=1:00:00" -overwrite_original %s' % ' '.join([shlex.quote(f) for f in file_list]), shell=True)
 
 def spring_forward():
     """Adjust the EXIF timestamps on the batch of photos in this directory by
@@ -328,9 +328,19 @@ def rotate_photos():
     """Auto-rotate all photos using exiftran. DOES NOT REQUIRE that a set of
     filename mappings be in memory; it just operates on the JPEG files in the
     current folder.
+       It operates on no more than 128 files per invocation of exiftran to make sure
+    that we don't run up against the system's limit on maximum number of files
+    passed to an external program.
     """
     print('Auto-rotating images ...\n\n')
-    subprocess.call('exiftran -aigp %s' % ' '.join(sorted(glob.glob('*jpg') + glob.glob('*JPG'))), shell=True)
+    all_photos, rest = sorted(glob.glob('*jpg') + glob.glob('*JPG')), None
+    while all_photos:
+        if len(all_photos) > 128:
+            all_photos, rest = all_photos[:128], all_photos[128:]
+        else:            rest = None
+        print()             # Give some indication of when we've ended a block of 128 photos.
+        subprocess.call('exiftran -aigp %s' % ' '.join(all_photos), shell=True)
+        all_photos = rest
 
 def process_shell_scripts():
     """Rewrite any shell scripts created by Magic Lantern.
@@ -476,5 +486,4 @@ if __name__ == "__main__":
     if input("Want me to hang around and run scripts that show up? (Say NO if unsure.) --|  ").strip().lower()[0] == "y":
         print('\n\nOK, hit ctrl-C when finished.\n')
         hang_around()
-
-# We're done!
+   # We're done!

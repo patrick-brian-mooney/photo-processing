@@ -32,8 +32,7 @@ root = Tk()                         # Top-level TKinter object
 
 
 def increment_and_rename(file_list):
-    """Bump up the timestamp for each file in FILE_LIST by one hour, then rename 
-    each file based on the new timestamp.
+    """Bump up the timestamp for each file in FILE_LIST by one hour, then rename    each file based on the new timestamp.
     """
     # root.withdraw()
     assert isinstance(file_list, (list, tuple))
@@ -163,11 +162,9 @@ def regen_thumb(file_list):
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to regen_thumb()"
     subprocess.call('exiftran -ig %s' % ' '.join(file_list), shell=True)
     sys.exit()
-    
-def resize_files(file_list, longest_side):
+   def resize_files(file_list, longest_side):
     """Proportionally resize each file in FILE_LIST so that its longest side is the
-    length specified by LONGEST_SIDE. 
-    """
+    length specified by LONGEST_SIDE.    """
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to resize_files()"
     for f in file_list:
@@ -198,11 +195,8 @@ if __name__ == "__main__":
     label = Label(root, text='\n\nResize')
     label.pack(side=TOP, fill=X)
     button = Button(root, text="Resize to 720p", command=lambda: resize_files(file_list, 720))
-    button.pack(side=TOP, fill=X)    
-    button = Button(root, text="Resize to 1920p", command=lambda: resize_files(file_list, 1920))
-    button.pack(side=TOP, fill=X)    
-    
-    label = Label(root, text='\n\nEXIF-aware JPEG transformations')
+    button.pack(side=TOP, fill=X)       button = Button(root, text="Resize to 1920p", command=lambda: resize_files(file_list, 1920))
+    button.pack(side=TOP, fill=X)          label = Label(root, text='\n\nEXIF-aware JPEG transformations')
     label.pack(side=TOP, fill=X)
     button = Button(root, text="Rotate automatically", command=lambda: exif_rotate(file_list, "a"))
     button.pack(side=TOP, fill=X)
