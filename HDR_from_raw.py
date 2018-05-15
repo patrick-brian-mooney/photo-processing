@@ -31,7 +31,7 @@ patrick_logger.verbosity_level = 3
 
 shifts = range(-5, 6)       # Range of Ev adjustments. This is probably the maximum plausible range from a single 12- or 14-bit raw file.
 
-force_debug = True
+force_debug = False
 
 
 def massage_file_list(selected_files):

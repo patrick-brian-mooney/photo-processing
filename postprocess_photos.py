@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 
-The postprocess-photos.py script performs the kind of postprocessing work that
+The postprocess_photos.py script performs the kind of postprocessing work that
 needs to happen when I move photos to my hard drive from one or more of my
 cameras. It processes an entire directory at a time; just invoke it by typing
 
-    ./postprocess-photos.py
+    ./postprocess_photos.py
 
 while the directory that needs to be processed is the current working
 directory.
@@ -112,8 +112,8 @@ def python_help():
     do something like this in a Python 3 shell:
 
         import postprocess_photos as pp
-        help(pp)                        # to see the documentation for the script
-        pp.read_filename_mappings()     # to read in the existing file_names.csv
+        help(pp)                                # to see the documentation for the script
+        pp.file_name_mappings.read_mappings()   # to read in the existing file_names.csv
         pp.process_shell_scripts()
 
     This would read the existing filename mappings back into memory and rewrite the
@@ -280,8 +280,10 @@ def rename_photos():
     print('Renaming photos (based on EXIF data, where possible) ... ')
     try:
         # First, get a list of all relevant files and (as best we can determine) when they were shot.
-        file_list = [].copy()
-        for which_image in sorted(list(set(glob.glob('*jpg') + glob.glob('*JPG') + glob.glob("*MOV") + glob.glob("*mov")))):
+        file_list, which_files = [][:], [][:]
+        for which_ext in fu.raw_photo_extensions + ('jpg', 'JPG', "MOV", "mov"):
+            which_files += glob.glob('*' + which_ext)
+        for which_image in sorted(list(set(which_files))):
             new_name = fu.name_from_date(which_image)
             file_list.append([new_name, which_image])
 
