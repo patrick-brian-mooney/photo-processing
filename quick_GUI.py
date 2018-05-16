@@ -4,17 +4,18 @@
 primarily use it to make changes to photos from a GUI viewer with a limited
 number of "external programs" easily accessible from a menu.
 
-This program is part of photo-processing, a collection of scripts. It is
-copyright 2017 by Patrick Mooney, and is licensed under the GPL, either version
-3 or (at your option) any later version. See the file LICENSE.md for more
-details.
+This program is part of Patrick Mooney's photo postprocessing scripts; the
+complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
+All programs in that collection are copyright 2015-2018 by Patrick Mooney; they
+are free software released under the GNU GPL, either version 3 or (at your
+option) any later version. See the file LICENSE.md for details.
 
 The latest version of these scripts can always be found at
     https://github.com/patrick-brian-mooney/photo-processing
 """
 
 
-import os, subprocess, sys
+import os, shlex, subprocess, sys
 from tkinter import *
 
 import postprocess_photos as pp
@@ -143,7 +144,7 @@ def open_in_luminance(file_list):
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to open in Luminance"
     raws = [fu.find_alt_version(x, fu.raw_photo_extensions) for x in file_list]
-    subprocess.call('luminance-hdr %s' % ' '.join(raws), shell=True)
+    subprocess.call('luminance-hdr %s' % ' '.join([shlex.quote(f) for f in raws]), shell=True)
     sys.exit()
 
 def exif_rotate(file_list, orientation):
@@ -153,14 +154,14 @@ def exif_rotate(file_list, orientation):
     """
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to exif_rotate()"
-    subprocess.call('exiftran -%sig %s' % (orientation, ' '.join(file_list)), shell=True)
+    subprocess.call('exiftran -%sig %s' % (orientation, ' '.join([shlex.quote(f) for f in file_list])), shell=True)
     sys.exit()
 
 def regen_thumb(file_list):
     """Regenerate the thumbnail image for a JPEG file."""
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to regen_thumb()"
-    subprocess.call('exiftran -ig %s' % ' '.join(file_list), shell=True)
+    subprocess.call('exiftran -ig %s' % ' '.join([shlex.quote(f) for f in file_list]), shell=True)
     sys.exit()
 
 def resize_files(file_list, longest_side):
@@ -169,7 +170,7 @@ def resize_files(file_list, longest_side):
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to resize_files()"
     for f in file_list:
-        subprocess.call('mogrify -resize %dx%d "%s"' % (longest_side, longest_side, f), shell=True)
+        subprocess.call('mogrify -resize %dx%d "%s"' % (longest_side, longest_side, shlex.quote(f)), shell=True)
     sys.exit()
 
 if __name__ == "__main__":

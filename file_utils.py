@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""A series of file-related utilities for my photo postprocessing scripts"""
+"""A series of file-related utilities for my photo postprocessing scripts.
+
+This program is part of Patrick Mooney's photo postprocessing scripts; the
+complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
+All programs in that collection are copyright 2015-2018 by Patrick Mooney; they
+are free software released under the GNU GPL, either version 3 or (at your
+option) any later version. See the file LICENSE.md for details.
+"""
 
 
 import csv, datetime, glob, os, sys

@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Code that used to be used in older versions of the photo-processing code, but
-isn't used any more. Kept here in case it turns out to be useful in the future.
+isn't used any more. Kept here in case it turns out to be useful again in the
+future.
+
+This program is part of Patrick Mooney's photo postprocessing scripts; the
+complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
+All programs in that collection are copyright 2015-2018 by Patrick Mooney; they
+are free software released under the GNU GPL, either version 3 or (at your
+option) any later version. See the file LICENSE.md for details.
 """
+
+import shlex
 
 min_brightness_value_spread = 100   # Minimum difference between mix and max for image to feed into HDR sequence
 min_top_brightness = 150            # Brightest pixel in dark image must have at least this value for image inclusion.
@@ -14,7 +23,9 @@ def is_left_edge_clipping(histo):
     otherwise.
        Assumes that HISTO is a 256-item brightness histogram.
     """
-    return (sum(histo[:63]) > sum(histo[63:]))  def downwards_moving_approval(image_filename, previous_image_filename=None):
+    return (sum(histo[:63]) > sum(histo[63:]))
+
+def downwards_moving_approval(image_filename, previous_image_filename=None):
     """Given IMAGE_FILENAME, and assuming that the current goal is to proceed toward
     darker and darker images, seeking the darkest image that should be part of the
     set of variant-exposed images to be tonemapped into a single HDR, this function     returns True if the image should be included, and False if it should not be
@@ -71,6 +82,32 @@ def approve_brightness_spread(n, x):
     else:                                       # Image brightness data never reaches pure black or pure white?
         log_it('    no reason to reject; including file ...', 3)
         return True                                 # Include the image.
+
+def copy_and_modify_ISO_and_Ev():
+    # OK, we've produced a file. Let's give it EXIF data, then adjust that data
+    try:
+        ISO = int(base_ISO) * (2 ** Ev_shift)
+    except BaseException as e:
+        ISO = 100 * (2 ** Ev_shift)                 # Pick a plausible value for the base
+        log_it("WARNING: unable to calculate real ISO because %s; using dummy ISO value %d" % (e, ISO), 3)
+    try:
+        Ev = int(base_Ev) + Ev_shift
+    except BaseException as e:
+        Ev = 8 + Ev_shift                           # Pick a plausible value for the base
+        log_it("WARNING: unable to calculate real Ev because %s; using dummy Ev value %d" % (e, Ev), 3)
+    command = """exiftool -overwrite_original -tagsfromfile "%s" "%s" """ % (rawfile, shlex.quote(outfile))
+    subprocess.call(command, shell=True)
+    command = 'exiftool -overwrite_original -ISO=%s -AutoISO=%s -BaseISO=%s -MeasuredEV=%s, -MeasuredEV2=%s "%s"'
+    command = command % (ISO, ISO, ISO, Ev, Ev, outfile)
+    subprocess.call(command, shell=True)
+
+def old_massage_file_list_criteria():
+    earliest_True = min([x for x in selected_files if selected_files[x]])
+    if earliest_True > min(selected_files):
+        selected_files[earliest_True-1] = True  # Use one earlier photo
+    latest_True = max([x for x in selected_files if selected_files[x]])
+    if latest_True < max(selected_files):
+        selected_files[latest_True+1] = True
 
 
 if __name__ == "__main__":

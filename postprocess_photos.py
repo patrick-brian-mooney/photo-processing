@@ -28,7 +28,8 @@ Currently, it performs the following tasks:
        by Magic Lantern, which is the only way that .SH files ever wind up on
        my memory cards). It then re-writes them, makes them executable, and
        calls them to create those enfused pictures. If this script encounters
-       any non-enfuse scripts, it will happily attempt to rewrite them anyway.
+       any non-enfuse scripts, it will happily attempt to rewrite them anyway,
+       almost certainly producing garbage as a result.
 
        Tasks accomplished by this script-rewriting operation are:
 
@@ -46,8 +47,8 @@ Currently, it performs the following tasks:
              separate HDR_components folder.
 
 That's it. That's all it does. Current limitations include:
-    * It doesn't do anything with non-JPEG images, except for known raw images
-      and videos. It does nothing with PNG, TIFF, BMP, etc.
+    * It doesn't do anything with non-JPEG images, except for videos and known raw
+      images. It does nothing with PNG, TIFF, BMP, etc.
     * It only operates on the current working directory.
     * It doesn't process any Magic Lantern scripts other than the enfuse/
       enfuse+align scripts. (ARE there others?)
@@ -78,9 +79,10 @@ in a terminal for more.
 
 This program comes with ABSOLUTELY NO WARRANTY. Use at your own risk.
 
-postprocess_photos.py is copyright 2015-17 by Patrick Mooney. It is free
-software, and you are welcome to redistribute it under certain conditions,
-according to the GNU general public license, either version 3 or (at your own
+This program is part of Patrick Mooney's photo postprocessing scripts; the
+complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
+All programs in that collection are copyright 2015-2018 by Patrick Mooney; they
+are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
 """
 
@@ -339,9 +341,10 @@ def rotate_photos():
     while all_photos:
         if len(all_photos) > 128:
             all_photos, rest = all_photos[:128], all_photos[128:]
-        else:            rest = None
+        else:
+            rest = None
         print()             # Give some indication of when we've ended a block of 128 photos.
-        subprocess.call('exiftran -aigp %s' % ' '.join(all_photos), shell=True)
+        subprocess.call('exiftran -aigp %s' % ' '.join([shlex.quote(f) for f in all_photos]), shell=True)
         all_photos = rest
 
 def process_shell_scripts():
@@ -412,8 +415,8 @@ def run_shell_scripts():
     file_list = sorted([which_script for which_script in glob.glob("*SH") if os.access(which_script, os.X_OK)])
     for which_script in file_list:
         print('\n\n    Running script: %s' % which_script)
-        subprocess.call('./' + which_script)
-        os.system('chmod a-x -R %s' % which_script)
+        subprocess.call('./' + shlex.quote(which_script))
+        os.system('chmod a-x -R %s' % shlex.quote(which_script))
     print("\n\n ... done running scripts.")
 
 def create_HDRs_from_raws():

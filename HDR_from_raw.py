@@ -9,13 +9,15 @@ Usage:
 
 It can also be imported as a module by Python 3.X programs.
 
-This script is copyright 2017 by Patrick Mooney. It is licensed under the GPL,
-either version 3 or (at your option) any later version. See the file LICENSE.md
-for details.
+This program is part of Patrick Mooney's photo postprocessing scripts; the
+complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
+All programs in that collection are copyright 2015-2018 by Patrick Mooney; they
+are free software released under the GNU GPL, either version 3 or (at your
+option) any later version. See the file LICENSE.md for details.
 """
 
 
-import os, subprocess, sys
+import os, shlex, subprocess, sys
 import statistics                   # And therefore we require Python 3.4.
 
 from PIL import Image               # [sudo] pip[3] install Pillow; https://python-pillow.org/
@@ -40,15 +42,7 @@ def massage_file_list(selected_files):
     final image. This procedure is the last chance to tweak those use/do not use
     settings.
 
-    Currently, it does nothing other than assert that there is at least one True in
-    the list, but it used to also include the following lines:
-
-    earliest_True = min([x for x in selected_files if selected_files[x]])
-    if earliest_True > min(selected_files):
-        selected_files[earliest_True-1] = True  # Use one earlier photo
-    latest_True = max([x for x in selected_files if selected_files[x]])
-    if latest_True < max(selected_files):
-        selected_files[latest_True+1] = True
+    This routine has done more in the past and may do more in the future.
     """
     assert len(selected_files) > 0, "ERROR: Unable to create any viable files from raw photo"
     return selected_files
@@ -58,25 +52,8 @@ def produce_shifted_tonemap(rawfile, base_ISO, base_Ev, Ev_shift):
     BASE_ISO. Return the name of the TIFF file so produced.
     """
     log_it("INFO: creating, tagging, and testing a file for Ev_shift %d" % Ev_shift, 2)
-    outfile = os.path.splitext(rawfile)[0] + ("+" if Ev_shift >= 0 else "") + str(Ev_shift) + ".jpg"
-    command = 'dcraw  -c -v -w -W -b %s %s | cjpeg -quality 100 -dct float > %s' % (2 ** Ev_shift, rawfile, outfile)
-    subprocess.call(command, shell=True)
-
-    # OK, we've produced a file. Let's give it EXIF data, then adjust that data
-    try:
-        ISO = int(base_ISO) * (2 ** Ev_shift)
-    except BaseException as e:
-        ISO = 100 * (2 ** Ev_shift)                 # Pick a plausible value for the base
-        log_it("WARNING: unable to calculate real ISO because %s; using dummy ISO value %d" % (e, ISO), 3)
-    try:
-        Ev = int(base_Ev) + Ev_shift
-    except BaseException as e:
-        Ev = 8 + Ev_shift                           # Pick a plausible value for the base
-        log_it("WARNING: unable to calculate real Ev because %s; using dummy Ev value %d" % (e, Ev), 3)
-    command = 'exiftool -overwrite_original -tagsfromfile %s %s' % (rawfile, outfile)
-    subprocess.call(command, shell=True)
-    command = 'exiftool -overwrite_original -ISO=%d -AutoISO=%d -BaseISO=%d -MeasuredEV=%d, -MeasuredEV2=%d "%s"'
-    command = command % (ISO, ISO, ISO, Ev, Ev, outfile)
+    outfile = 'HDR_AIS_' + os.path.splitext(rawfile)[0] + ("+" if Ev_shift >= 0 else "") + str(Ev_shift) + ".tif"
+    command = "dcraw -T -c -v -w -W -b %s %s > %s" % (2 ** Ev_shift, shlex.quote(rawfile), shlex.quote(outfile))
     subprocess.call(command, shell=True)
     return outfile
 
@@ -100,7 +77,7 @@ clipping_threshold = 16     # If >= half the image's data is within this dist. o
 def is_right_edge_clipping(histo):
     """Returns True if the histogram HISTO is clipped at the right edge, or False
     otherwise. We treat a False from this function as a criterion for detecting
-    we've found the darkest image to include in the tonemap.
+    whether we've found the darkest image to include in the tonemap.
 
     Assumes that HISTO is a 256-item brightness histogram.
     """
@@ -109,7 +86,7 @@ def is_right_edge_clipping(histo):
 def is_left_edge_clipping(histo):
     """Returns True if the histogram HISTO is clipped at the left edge, or False
     otherwise. We treat a False from this function as a criterion for detecting
-    we've found the darkest image to include in the tonemap.
+    when we've found the darkest image to include in the tonemap.
 
     Assumes that HISTO is a 256-item brightness histogram.
     """
@@ -118,8 +95,8 @@ def is_left_edge_clipping(histo):
 def no_lower_quarter_data(histo):
     """Detect whether all of the data in a (smoothed, presumably) brightness
     histogram is in the upper three-quarters of the brightness graph. We treat
-    this as a factor in determining we've found the brightest necessary image
-    for the tonemap.
+    this as a factor in determining when we've found the brightest necessary
+    image for the tonemap.
     """
     return sum(histo[:63]) == 0
 
@@ -134,7 +111,6 @@ def create_HDR_script(rawfile):
         if head:                                    # If we're passed in a full path to a file ...
             os.chdir(os.path.dirname(rawfile))
             rawfile = tail
-        files_to_merge = [][:]
         selected_files, shift_mappings = {}.copy(), {}.copy()
         original_ISO = fu.get_value_from_any_tag(fu.find_alt_version(rawfile, fu.jpeg_extensions), ['ISO', 'AutoISO', 'BaseISO'])
         original_Ev = fu.get_value_from_any_tag(fu.find_alt_version(rawfile, fu.jpeg_extensions), ['MeasuredEV', 'MeasuredEV2'])
@@ -177,25 +153,29 @@ def create_HDR_script(rawfile):
         selected_files = list(shift_mappings.values())
         selected_files = massage_file_list(selected_files)
         files_to_merge = sorted(selected_files)
+        base_TIFF = os.path.splitext(rawfile)[0] + "+0.tif"
 
-        # Now move the non-EV-shifted file to the front of the list, because create_script_from_file_list assumes precisely that.
+        # Now move the non-Ev-shifted file to the front of the list, because create_script_from_file_list assumes precisely that.
         try:    # If the unshifted image appears in the file list, use that for the base exposure
-            files_to_merge.insert(0, files_to_merge.pop(files_to_merge.index(os.path.splitext(rawfile)[0] + "+0.jpg")))
+            files_to_merge.insert(0, files_to_merge.pop(files_to_merge.index(base_TIFF)))
         except ValueError:  # Otherwise, just sort the list, which does a fairly good job of picking a low value for the front.
             files_to_merge.sort()
-        chs.create_script_from_file_list(files_to_merge, delete_originals=True, suppress_align=True)
-        return os.path.abspath(os.path.splitext(files_to_merge[0])[0] + '_HDR.SH')
+            base_TIFF = files_to_merge[0]
+        new_script = chs.create_script_from_file_list(files_to_merge, metadata_source_file=rawfile, delete_originals=True, suppress_align=True)
+        return os.path.abspath(new_script)
+    except BaseException as e:
+        log_it("ERROR: create_HDR_script() got error %s while trying to create a script for %s." % (e, rawfile))
     finally:
         os.chdir(olddir)
 
 def HDR_tonemap_from_raw(rawfile):
     """Write an HDR-creation script for RAWFILE, then run it."""
     raw_script = create_HDR_script(rawfile)
-    subprocess.call(os.path.abspath(raw_script), shell=True)
+    subprocess.call(shlex.quote(os.path.abspath(raw_script)), shell=True)
 
 if __name__ == "__main__":
     if force_debug:
-        sys.argv[1:] = ['/home/patrick/Photos/2017-12-22/trip to Portland/2017-12-17_15_52_19_1.CR2']
+        sys.argv[1:] = ['/home/patrick/Photos/film/working/028-02.dng']
     if len(sys.argv) == 1 or sys.argv[1] in ['--help', '-h']:
         print(__doc__)
         sys.exit(0)

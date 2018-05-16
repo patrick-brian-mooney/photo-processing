@@ -7,7 +7,7 @@
 
 <p>&nbsp;</p>
 
-<p>This is a collection of Python 3.X scripts I use to postprocess photos from the Linux terminal. It depends on a large number of other programs. It's a handy toolbox that does my post-offloading processing automatically, creates <code>bash</code> scripts that (in turn) begin to create panoramas from sets of photos; create tonemapped HDR photos from raw photos or sequences of images shot at different exposures; maintain filename mappings; and provides a quick interface to some utilities that I commonly use while sorting and processing photos.</p>
+<p>This is a collection of Python 3.X scripts I use to postprocess photos from the Linux terminal. It depends on a large number of other programs. It's a handy toolbox that does my post-offloading processing automatically; creates <code>bash</code> scripts that (in turn) begin to create panoramas from sets of photos; create tonemapped HDR photos from raw photos or sequences of images shot at different exposures; maintain filename mappings; and provides a quick interface to some utilities that I commonly use while sorting and processing photos.</p>
 
 The external programs required by these scripts are:
 
@@ -56,22 +56,22 @@ All of the code in this project is licensed under the GNU GPL, either version 3 
 
 There will hopefully be a series of write-ups later about how I use this series of scripts, but for now, here's my postprocessing workflow:
 
-1. I copy photos onto my hard drive from my memory cards and from all devices that captured photos, and do any necessary time adjustments from a terminal, then immediately produce a backup of all photos by force-starting my normal nightly backup process.
+1. I copy photos onto my hard drive from my memory cards and from all devices that captured photos, and do any necessary time adjustments from a terminal, then immediately produce a backup of all photos by force-starting my (normally automatic) nightly backup process.
    * Manual time adjustment is usually necessary for some photos if I cross a time zone boundary: I keep my camera permanently in my home time zone and treat my home time zone as the "real" time of all photos throughout a trip. This ensures that all photos constitute selections, in order, of a continuous narrative of any trip or activity they document or describe or record.
-   * However, my phone and tablet automatically adjust their times to local time when I cross a time zone boundary based on their network interactions, and it's easier to adjust the timestamps on a fraction of photos later than to try to prevent the camera and tablet from adjusting, so I just do that; usually I'll import `postprocess_photos` into a Python terminal and then use its functions `spring_forward()` or `fall_back()`; but they're just convenience wrappers for `exiftool`, which I sometimes just use directly.
+   * However, my phone and tablet automatically adjust their times to local time when I cross a time zone boundary based on their network interactions, and it's easier to adjust the timestamps on that fraction of photos later than to try to prevent the phone and tablet from adjusting, so I just do that; usually I'll import `postprocess_photos` into a Python terminal and then use its functions `spring_forward()` or `fall_back()`; but they're just convenience wrappers for `exiftool`, which I sometimes just use directly.
    * Forgetting to adjust the timestamps of photos from my phone is the biggest regular pain in my ass from my postprocessing procedure. 
 2. I run `postprocess_photos.py`, which does three primary things:
    * It renames all of the photos according to their timestamps (which is why timestamps need to be already adjusted)
    * It processes any necessary HDR tonemaps that should be created from data on the camera, by both ...
-     a. identifying HDR-creation scripts written by Magic Lantern, and running those scripts; and
+     a. identifying HDR-creation scripts written by Magic Lantern, and re-writing and then running those scripts; and
      b. attempting to automatically create tonemaps from any raw camera photos. 
    * It rotates each of the JPEGs to what the camera's EXIF information suggests is the appropriate orientation for it.
 3. I then go through the processed photos visually in a viewer (I myself prefer an GQView's old version, 2.0.4), and making any other adjustments necessary. Typically, the adjustments include:
-   * deletion of shots with absolutely no merit, or of most copies of very-near duplicate shots: typically around 10% of total photos from a collection.
+   * deletion of shots with absolutely no merit, or of most copies of very-near-duplicate shots: typically around 10% of total photos from a collection.
    * rotation correction in the rare case that the camera guessed wrong.
    * reduction in size for photos that have no artistic merit, but merely record information that is recorded perfectly well when the photo recording it has a lower resolution.
    * adjusting parameters in HDR-creation scripts and re-running them, or re-creating HDR scripts from scratch by running `create_HDR_script.py`.
-   * copying photo sequences that constitute groupings to be stitched into panoramas into a folder where they wait to have `create_panorama_script.py`.
+   * copying photo sequences that constitute groupings to be stitched into panoramas into a folder where they wait to have `create_panorama_script.py` run over them.
    * copying photos to be uploaded to Flickr or Tumblr into folders for those purposes.
    * copying photos that may eventually be posted to DeviantArt to a `to be processed` folder.
 4. I re-run any scripts that need to be re-run as a result of step 3, if this has not already happened concurrently during step 3.
@@ -82,5 +82,4 @@ There will hopefully be a series of write-ups later about how I use this series 
 Known Problems
 --------------
 
-* `HDR_from_raw.py` does (a fair amount of) unnecessary work: it copies EXIF tags into create JPEGs and modifies them to indicate the effective ISO of modified shots, but this information is entirely discarded when the photos are converted to bitmapped files that cannot store EXIF metadata. Moreover, it makes errors while doing so: it doesn't correctly pass the detected ISO of the original photo to the new photo.
 * There's still more tweaking to be done on detecting which automatically produced exposures should be included in the HDR photos created by `HDR_from_raw.py`: currently (18 September 2017) my suspicion is that another exposure (or perhaps two) should be dropped from the darkest end of the spectrum, but there's more experimenting to be done first.

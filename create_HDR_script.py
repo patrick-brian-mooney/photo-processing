@@ -10,9 +10,10 @@ re-written Magic Lantern scripts produced by my postprocess-photos.py script.
 
 This program comes with ABSOLUTELY NO WARRANTY. Use at your own risk.
 
-create_HDR_script.py is copyright 2015-17 by Patrick Mooney. It is free
-software, and you are welcome to redistribute it under certain conditions,
-according to the GNU general public license, either version 3 or (at your own
+This program is part of Patrick Mooney's photo postprocessing scripts; the
+complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
+All programs in that collection are copyright 2015-2018 by Patrick Mooney; they
+are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
 """
 
@@ -26,13 +27,21 @@ def print_usage(exit_value=0):
     print(__doc__)
     sys.exit(exit_value)
 
-def create_script_from_file_list(HDR_input_files, file_to_move=None, file_to_delete=None, delete_originals=False, suppress_align=False):
+def create_script_from_file_list(HDR_input_files,
+                                 file_to_move=None,
+                                 file_to_delete=None,
+                                 metadata_source_file=None,
+                                 delete_originals=False,
+                                 suppress_align=False):
     """This function creates an enfuse HDR script from a list of files on which the
     script will operate. Note that this function does not run the script.
 
     If FILE_TO_MOVE is not None, that file is moved into the old_scripts directory
     after a successful script creation. If FILE_TO_DELETE is not None, that file is
     deleted after a successful script creation.
+
+    If METADATA_SOURCE_FILE is not None, the resulting script will attempt to use
+    exiftool to copy metadata from that file to the
 
     The parameter DELETE_ORIGINALS controls what the script, when run, does, if
     successful. If delete_originals is True, the files that have been blended into
@@ -43,47 +52,40 @@ def create_script_from_file_list(HDR_input_files, file_to_move=None, file_to_del
     align the images it's processing. This might be useful if, for instance, all
     of the images are already aligned.
     """
-    output_file = os.path.splitext(HDR_input_files[0])[0].strip() + "_HDR.TIFF"
+    output_file = os.path.splitext(HDR_input_files[0])[0].strip().lstrip('HDR_AIS_').strip() + "_HDR.TIFF"
     output_TIFF_base = os.path.splitext(output_file)[0].strip().replace('-','').replace('_','')
+    wdir = os.path.split(os.path.realpath(HDR_input_files[0]))[0]
 
     the_script = """#!/usr/bin/env bash
 
-# %s from %s ... %s with aligning first
+# %s from %s ... %s, %s
 # This script written by Patrick Mooney's create_HDR_script.py script, see
 #     https://github.com/patrick-brian-mooney/photo-processing/
 
 OLDDIR=$(pwd)
-cd "%s"
-""" % (output_file, HDR_input_files[0], HDR_input_files[-1], shlex.quote(os.path.split(os.path.realpath(HDR_input_files[0]))[0]))
+cd %s
+""" % (output_file, HDR_input_files[0], HDR_input_files[-1],
+       "assuming pre-aligned images" if (suppress_align) else "aligning first",
+       shlex.quote(wdir))
 
-    if suppress_align:
-        for index, value in enumerate(HDR_input_files):
-            the_script += '\nconvert "%s" HDR_AIS_%s%04d.tif' % (value, output_TIFF_base, index)
-    else:
-        the_script += "\nalign_image_stack -xyzdivv -a HDR_AIS_%s %s" % (output_TIFF_base, ' '.join(HDR_input_files))
+    if not suppress_align:
+        the_script += "\nalign_image_stack -xyzdivv -a HDR_AIS %s" % ' '.join([shlex.quote(f) for f in HDR_input_files])
 
-    the_script = the_script + """
-enfuse "$@"  --output=%s HDR_AIS_%s*
-rm HDR_AIS_%s*
-""" % (output_file, output_TIFF_base, output_TIFF_base)
+    the_script += "\nenfuse --output=%s HDR_AIS*tif" % (shlex.quote(output_file))
+    the_script += "\nconvert %s -quality 100 %s" % (shlex.quote(output_file), shlex.quote(os.path.splitext(output_file)[0] + ".JPG"))
+    the_script += "\nrm %s\n\n" % shlex.quote(output_file)
 
-    the_script += """
-convert %s -quality 98 %s.JPG
-rm %s
-exiftool -tagsfromfile %s %s.JPG
-exiftool -n -Orientation=1 %s.JPG      # Output of CONVERT is already oriented; correct the JPG orientation
-rm *JPG_original
-""" % (output_file, os.path.splitext(output_file)[0],
-       output_file,
-       os.path.splitext(HDR_input_files[0])[0] + '.jpg', os.path.splitext(output_file)[0],
-       os.path.splitext(output_file)[0])
+    if metadata_source_file:
+        the_script += "exiftool -tagsfromfile %s %s\n" % (shlex.quote(metadata_source_file), shlex.quote(os.path.splitext(output_file)[0] + ".JPG"))
+        the_script += """exiftool -n -Orientation=1 %s       # Output of CONVERT is already oriented; correct the JPG orientation\n""" % (shlex.quote(os.path.splitext(output_file)[0] + ".JPG"))
+        the_script += "rm *_original\n"
 
     if delete_originals:
-        the_script += "\nrm %s" % ' '.join(['"%s"' % f for f in HDR_input_files])
+        the_script += "\nrm %s" % ' '.join([shlex.quote(f) for f in HDR_input_files])
     else:
-        the_script += "\nmv %s HDR_components/" % ' '.join(['"%s"' % f for f in HDR_input_files])
+        the_script += "\nmv %s HDR_components/" % ' '.join([shlex.quote(f) for f in HDR_input_files])
 
-    the_script += "\n\ncd $OLDDIR\n"
+    the_script += "\n\ncd $OLDDIR"
 
     script_file_name = os.path.splitext(output_file)[0] + '.SH'
     with open(script_file_name, mode='w') as script_file:
@@ -104,6 +106,7 @@ rm *JPG_original
             os.remove(file_to_delete)
         except:
             print('ERROR: unable to delete the old script "%s"' % file_to_delete)
+    return script_file_name
 
 
 def create_script_from_first_file(first_file, num_files=total_number_of_files, file_to_delete=None):
