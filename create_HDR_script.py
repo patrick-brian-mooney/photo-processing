@@ -85,7 +85,7 @@ cd %s
     else:
         the_script += "\nmv %s HDR_components/" % ' '.join([shlex.quote(f) for f in HDR_input_files])
 
-    the_script += "\n\ncd $OLDDIR"
+    the_script += "\n\n" + """cd "$OLDDIR" """
 
     script_file_name = os.path.splitext(output_file)[0] + '.SH'
     with open(script_file_name, mode='w') as script_file:
