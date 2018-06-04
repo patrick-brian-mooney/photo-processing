@@ -41,7 +41,7 @@ def create_script_from_file_list(HDR_input_files,
     deleted after a successful script creation.
 
     If METADATA_SOURCE_FILE is not None, the resulting script will attempt to use
-    exiftool to copy metadata from that file to the
+    exiftool to copy metadata from that file to the script's final product.
 
     The parameter DELETE_ORIGINALS controls what the script, when run, does, if
     successful. If delete_originals is True, the files that have been blended into
@@ -104,7 +104,7 @@ cd %s
     if file_to_delete:
         try:
             os.remove(file_to_delete)
-        except:
+        except Exception as e:
             print('ERROR: unable to delete the old script "%s"' % file_to_delete)
     return script_file_name
 

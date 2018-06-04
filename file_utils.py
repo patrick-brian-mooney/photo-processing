@@ -15,7 +15,7 @@ import csv, datetime, glob, os, sys
 import exifread                     # [sudo] pip[3] install exifread; or, https://pypi.python.org/pypi/ExifRead
 
 
-raw_photo_extensions = ('CR2', 'cr2', 'DNG', 'dng', 'RAF', 'raf', 'DCR', 'dcr', 'NEF', 'nef')           # Extensions for raw photos.
+raw_photo_extensions = ('CR2', 'cr2', 'DNG', 'dng', 'RAF', 'raf', 'DCR', 'dcr', 'NEF', 'nef')
 jpeg_extensions = ('jpg', 'JPG', 'jpeg', 'JPEG', 'jpe', 'JPE')
 json_extensions = ('json', 'JSON')
 all_alternates = tuple(sorted(list(raw_photo_extensions + jpeg_extensions + json_extensions)))

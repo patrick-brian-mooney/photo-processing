@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""A GUI providing access to functions in the postprocess_photos script. I
-primarily use it to make changes to photos from a GUI viewer with a limited
-number of "external programs" easily accessible from a menu.
+"""A GUI providing access to functions in the postprocess_photos script, plus
+access to several external utilities. I primarily use it to make quick changes
+to photos from a GUI viewer with a limited number of "external programs" easily
+accessible from a menu.
 
 This program is part of Patrick Mooney's photo postprocessing scripts; the
 complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
@@ -30,10 +31,72 @@ from patrick_logger import log_it
 patrick_logger.verbosity_level = 5
 
 root = Tk()                         # Top-level TKinter object
+root.title('Image Processing Options')
+
+
+date_fields = ('YYYY', 'MO', 'DD', 'HH', 'MM', 'SS')
+
+
+class NonIdioticStringVar(StringVar):
+    """Let's make these easily displayable for debugging, shall we?"""
+    def __repr__(self):
+        return "'%s'" % self.get()
+    
+    def __str__(self):
+        return self.get()
+
+
+class DateTimeDialog(Frame):
+    """Get a date/time combo from the user. Used in EXIF data-related situations."""
+    
+    def ret_func(self):
+        """Called when OK is pushed.""" 
+        d = { f: self.new_date[f].get() for f in date_fields }
+        self.callback(int(d['YYYY']), int(d['MO']), int(d["DD"]), int(d['HH']), int(d['MM']), int(d['SS']))
+        self.master.destroy()
+        
+    def cancel_func(self):
+        """Destroy the window without doing anything else."""
+        self.master.destroy()
+    
+    def __init__(self, master=None, callback=None):
+        """We pack bottom-up here so that subclasses can easily add to the top of the
+        frame, should they so desire.
+        """
+        assert callback is not None
+        self.new_date = {}
+        self.callback = callback
+        Frame.__init__(self, master)
+        self.pack()
+        row = Frame(master)
+        Button(row, text="OK", command=self.ret_func).pack(side=RIGHT, expand=YES, fill=X)
+        Button(row, text="Cancel", command=self.cancel_func).pack(side=LEFT, expand=YES, fill=X)
+        row.pack(side=BOTTOM)
+        Label(master, text="WARNING: all values must be numeric. No validation is performed!").pack(side=BOTTOM, expand=YES, fill=X)
+        for field in date_fields:
+            row = Frame(master)
+            lab = Label(row, width=5, text=field)
+            ent = Entry(row)
+            ent.insert(0, "0")
+            self.new_date[field] = ent
+            row.pack(side=TOP, fill=X)
+            lab.pack(side=LEFT)
+            ent.pack(side=RIGHT, expand=YES, fill=X)
+            
+
+def adjust_timestamp(file_list):
+    """ """
+    dialog = Toplevel()
+    DateTimeDialog(master=dialog, callback=lambda yr, mo, days, hr, m, s: pp.adjust_timestamps(file_list, yr, mo, days, hr, m, s)).pack()
+    dialog.grab_set()
+    dialog.focus_set()
+    dialog.wait_window()
+    sys.exit()
 
 
 def increment_and_rename(file_list):
-    """Bump up the timestamp for each file in FILE_LIST by one hour, then rename    each file based on the new timestamp.
+    """Bump up the timestamp for each file in FILE_LIST by one hour, then rename
+    each file based on the new timestamp.
     """
     # root.withdraw()
     assert isinstance(file_list, (list, tuple))
@@ -48,6 +111,7 @@ def increment_and_rename(file_list):
         mappings.rename_and_map(f, new_name)
     mappings.write_mappings()
     sys.exit()
+
 
 def decrement_and_rename(file_list):
     """Bump the timestamp down for each file in FILE_LIST, then rename it based on
@@ -79,6 +143,7 @@ def decrement_and_rename(file_list):
         os.chdir(olddir)
     sys.exit()
 
+
 def delete_with_any_alternates(file_list):
     """Delete the file, with any alternate or paratextual associated files."""
     # root.withdraw()
@@ -93,6 +158,7 @@ def delete_with_any_alternates(file_list):
         os.unlink(f)
     sys.exit()
 
+
 def tonemap_raws(file_list):
     """Create automated tonemaps from the specified raw files."""
     # root.withdraw()
@@ -106,6 +172,7 @@ def tonemap_raws(file_list):
             log_it("INFO: identified raw photo: %s" % raw_file, 3)
             Hfr.HDR_tonemap_from_raw(raw_file)
     sys.exit()
+
 
 def produce_raw_scripts(file_list):
     """Produce scripts that will tonemap the raw files, along with the necessary
@@ -126,6 +193,7 @@ def produce_raw_scripts(file_list):
             _ = Hfr.create_HDR_script(raw_file)
     sys.exit()
 
+
 def script_from_files(file_list):
     """Create an HDR script from selected files. This function is just a
     convenience wrapper for an external function.
@@ -135,6 +203,7 @@ def script_from_files(file_list):
     assert len(file_list) > 1, "ERROR: you must specify at least two files to script_from_files()"
     cHs.create_script_from_file_list(file_list)
     sys.exit()
+
 
 def open_in_luminance(file_list):
     """Create an HDR script from selected files. This function is just a
@@ -147,8 +216,9 @@ def open_in_luminance(file_list):
     subprocess.call('luminance-hdr %s' % ' '.join([shlex.quote(f) for f in raws]), shell=True)
     sys.exit()
 
+
 def exif_rotate(file_list, orientation):
-    """Rotate eachJPEG file in FILE_LIST to the specified ORIENTATION. ORIENTATION
+    """Rotate each JPEG file in FILE_LIST to the specified ORIENTATION. ORIENTATION
     is a string constant that constitutes a command-line flag to the exiftran
     program.
     """
@@ -157,12 +227,14 @@ def exif_rotate(file_list, orientation):
     subprocess.call('exiftran -%sig %s' % (orientation, ' '.join([shlex.quote(f) for f in file_list])), shell=True)
     sys.exit()
 
+
 def regen_thumb(file_list):
     """Regenerate the thumbnail image for a JPEG file."""
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to regen_thumb()"
     subprocess.call('exiftran -ig %s' % ' '.join([shlex.quote(f) for f in file_list]), shell=True)
     sys.exit()
+
 
 def resize_files(file_list, longest_side):
     """Proportionally resize each file in FILE_LIST so that its longest side is the
@@ -172,6 +244,7 @@ def resize_files(file_list, longest_side):
     for f in file_list:
         subprocess.call('mogrify -resize %dx%d "%s"' % (longest_side, longest_side, shlex.quote(f)), shell=True)
     sys.exit()
+
 
 if __name__ == "__main__":
     file_list = sys.argv[1:]
@@ -187,11 +260,13 @@ if __name__ == "__main__":
 
     label = Label(root, text='\nWhat would you like to do with these %d files?\n\n' % len(file_list))
     label.pack(side=TOP, fill=X)
+    label = Button(root, text="Adjust timestamp(s) and rename", command=lambda: adjust_timestamp(file_list))
+    label.pack(side=TOP, fill=X)
     button = Button(root, text="Add 1 hour to timestamp(s) and rename", command=lambda: increment_and_rename(file_list))
     button.pack(side=TOP, fill=X)
     button = Button(root, text="Subtract 1 hour from timestamp(s) and rename", command=lambda: decrement_and_rename(file_list))
     button.pack(side=TOP, fill=X)
-    button = Button(root, text="Delete, and delete all alternate files", command=lambda: delete_with_any_alternates(file_list))
+    button = Button(root, text="Delete, and delete all sidecars", command=lambda: delete_with_any_alternates(file_list))
     button.pack(side=TOP, fill=X)
 
     label = Label(root, text='\n\nResize')
@@ -213,11 +288,11 @@ if __name__ == "__main__":
     button = Button(root, text="Regenerate JPEG thumbnail", command=lambda: regen_thumb(file_list))
     button.pack(side=TOP, fill=X)
 
-    label = Label(root, text='\n\nHDR Scripting')
+    label = Label(root, text='\n\nHDR Processing')
     label.pack(side=TOP, fill=X)
     button = Button(root, text="Create HDR script for all selected files", command=lambda: script_from_files(file_list))
     button.pack(side=TOP, fill=X)
-    button = Button(root, text="HDR tonemap script(s) from corresponding raw(s)", command=lambda: produce_raw_scripts(file_list))
+    button = Button(root, text="Create HDR tonemap script(s) from corresponding raw(s)", command=lambda: produce_raw_scripts(file_list))
     button.pack(side=TOP, fill=X)
     button = Button(root, text="HDR tonemap(s) from corresponding raw(s)", command=lambda: tonemap_raws(file_list))
     button.pack(side=TOP, fill=X)
@@ -225,3 +300,5 @@ if __name__ == "__main__":
     button.pack(side=TOP, fill=X)
 
     root.mainloop()
+else:
+    root.withdraw()

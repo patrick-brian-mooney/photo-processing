@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-
 The postprocess_photos.py script performs the kind of postprocessing work that
 needs to happen when I move photos to my hard drive from one or more of my
 cameras. It processes an entire directory at a time; just invoke it by typing
@@ -87,7 +86,7 @@ option) any later version. See the file LICENSE.md for details.
 """
 
 
-import csv, datetime, glob, os, shlex, shutil, subprocess, sys, time
+import csv, datetime, fsnmatch, glob, os, re, shlex, shutil, subprocess, sys, time
 
 import exifread                         # https://github.com/ianare/exif-py; sudo pip3 install exifread
 from PIL import Image                   # [sudo] pip[3] install Pillow; https://python-pillow.org/
@@ -161,15 +160,41 @@ def print_usage():
     "Display a message explaining the usage of the script."
     print(__doc__)
 
+def adjust_timestamps(file_list, yr=0, mo=0, days=0, hr=0, m=0, sec=0):
+    """Calls exiftran to adjust the timestamps of all files in FILE_LIST by the
+    indicated amount. If any component of the date is negative, then the amount of
+    time represented is subtracted from the current time for each file; otherwise,
+    the amount of time is added to the current timestamp in each file.
+    
+    Assumes all files in FILE_LIST are in the same directory.
+    """
+    if not (yr or mo or days or hr or m or sec):            # If we don't have any work to do, don't do any work.
+        return    
+    old_dir = os.getcwd()
+    try:
+        if os.path.dirname(file_list[0]):
+            os.chdir(os.path.dirname(file_list[0]))
+        sign = "-" if [i for i in [yr, mo, days, hr, m, sec] if i < 0] else "+"
+        f_date = "%s:%s:%s %s:%s:%s" % (abs(yr), abs(mo), abs(days), abs(hr), abs(m), abs(sec))
+        subprocess.call('exiftool "-AllDates%s=%s" "-FileModifyDate%s=%s" -overwrite_original %s' % (sign, f_date, sign, f_date, ' '.join([shlex.quote(f) for f in file_list])), shell=True)
+        mappings = fu.FilenameMapper()
+        mappings.read_mappings('file_list.csv')
+        for f in file_list:
+            new_name = fu.find_unique_name(fu.name_from_date(f))
+            mappings.rename_and_map(f, new_name)
+        mappings.write_mappings()
+    finally:
+        os.chdir(old_dir)
+
 def _increment_timestamp(file_list):
     """Add one hour to the timestamp for each file in FILE_LIST."""
     assert isinstance(file_list, (list, tuple))
-    subprocess.call('exiftool "-alldates+=1:00:00" "-FileModifyDate+=1:00:00" -overwrite_original %s' % ' '.join([shlex.quote(f) for f in file_list]), shell=True)
-
+    adjust_timestamps(file_list, hr=1)
+    
 def _decrement_timestamp(file_list):
     """Subtract one hour from the timestamp for each file in FILE_LIST."""
     assert isinstance(file_list, (list, tuple))
-    subprocess.call('exiftool "-alldates-=1:00:00" "-FileModifyDate-=1:00:00" -overwrite_original %s' % ' '.join([shlex.quote(f) for f in file_list]), shell=True)
+    adjust_timestamps(file_list, hr=-1)
 
 def spring_forward():
     """Adjust the EXIF timestamps on the batch of photos in this directory by
@@ -223,9 +248,9 @@ def delete_spurious_raw_files():
     First, it ensures that every raw file has a corresponding JPEG file. I only
     shoot raw photos in RAW+JPG mode, never raw-only, so any raw photos without
     corresponding JPEGs indicate that the JPEG was deleted in an attempt to erase
-    "the photo." Since many quick viewers don't support raw at all, and "the photo"
-    here means "both related files," this procedure ensures that JPEGs deleted in
-    one of these quick viewers don't leave orphaned raw files behind.
+    "the photo." Since some quick viewers don't support raw files at all, and "the
+    photo" here means "both related files," this procedure ensures that JPEGs
+    deleted in one of these quick viewers don't leave orphaned raw files behind.
 
     This first action can be turned off by setting the global variable
     raw_must_be_paired_with_JPEG to False.
@@ -255,8 +280,8 @@ def delete_spurious_raw_files():
         for which_raw in orphan_raws:
             print("Raw file '%s' has no corresponding JPEG; deleting ..." % which_raw)
             os.remove(which_raw)
+    # Now, delete any raw files whose corresponding JPEG is "small."
     if delete_small_raws:
-        # orphan_raws = [][:]
         for which_raw in fu.list_of_raws():
             corresponding_jpg = fu.find_alt_version(which_raw, fu.jpeg_extensions)
             if corresponding_jpg:
@@ -366,7 +391,7 @@ def process_shell_scripts():
     """
     print('\nRewriting enfuse HDR scripts ... ')
     try:
-        for which_script in glob.glob('HDR*SH'):
+        for which_script in [s for s in glob.glob('*') if re.match(fnmatch.translate('HDR*SH'), s, re.IGNORECASE)]:
             print('    Rewriting %s' % which_script)
             old_perms = os.stat(which_script).st_mode
             with open(which_script, 'r') as the_script:

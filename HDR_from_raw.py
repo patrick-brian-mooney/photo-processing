@@ -72,7 +72,7 @@ def get_smoothed_image_histogram(image_filename):
     h = [ v if v > minimum_threshold else 0 for v in h ]            # Anything below threshold is dropped to zero
     return h
 
-clipping_threshold = 16     # If >= half the image's data is within this dist. of the relevant edge, we'll consider it clipped.
+clipping_threshold = 144		# If >= half the image's data is within this dist. of the relevant edge, we'll consider it clipped.
 
 def is_right_edge_clipping(histo):
     """Returns True if the histogram HISTO is clipped at the right edge, or False
@@ -175,7 +175,7 @@ def HDR_tonemap_from_raw(rawfile):
 
 if __name__ == "__main__":
     if force_debug:
-        sys.argv[1:] = ['/home/patrick/Photos/film/working/028-02.dng']
+        sys.argv[1:] = ['/home/patrick/Desktop/working/HDR samples/2017-05-22_12_51_32_1.CR2']
     if len(sys.argv) == 1 or sys.argv[1] in ['--help', '-h']:
         print(__doc__)
         sys.exit(0)
