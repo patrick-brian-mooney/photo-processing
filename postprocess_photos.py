@@ -98,7 +98,7 @@ import file_utils as fu                 # https://github.com/patrick-brian-moone
 
 
 debugging = True
-force_debug = False
+force_debug = True
 
 raw_must_be_paired_with_JPEG = False    # Delete raw photos that don't have a pre-existing JPEG counterpart
 delete_small_raws = True                # Delete raw photos that are paired with small JPEGs.

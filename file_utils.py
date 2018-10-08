@@ -61,7 +61,8 @@ def movie_recorded_date(which_file):
     """Tries to parse FFmpeg output to get the date the movie was recorded.
     #FIXME: probably quite fragile.
     """
-    output = subprocess.check_output("ffmpeg -i " + shlex.quote(which_file), shell=True).decode().split('\n')
+    result = subprocess.run(["ffmpeg", "-i", which_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)       # And we therefore require Python 3.5.
+    output = result.stderr.decode().split('\n')     # FFmpeg returns result code 1 if no action specified. That's OK.
     try:
         time_line = [i for i in output if 'creation_time' in i][0]
         return ''.join([c for c in time_line.strip() if c.isdigit()])
@@ -81,7 +82,7 @@ def name_from_date(which_file):
             try:
                 dt = tags['Image DateTime'].values
             except KeyError:            # Sigh. Not all of my image-generating devices generate EXIF info in all circumstances.
-                if os.path.splitext(which_file)[1] in movie_extensions:
+                if os.path.splitext(which_file)[1].strip().strip('.').strip() in movie_extensions:
                     dt = movie_recorded_date(which_file)
                 else:
                     dt = which_file         # At this point, just guess based on filename.
