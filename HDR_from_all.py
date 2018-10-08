@@ -19,6 +19,7 @@ import os, glob, subprocess
 import postprocess_photos as pp     # https://github.com/patrick-brian-mooney/photo-processing/blob/master/postprocess_photos.py
 import create_HDR_script as cHs     # https://github.com/patrick-brian-mooney/photo-processing/blob/master/create_HDR_script.py
 
+
 the_files = sorted(glob.glob('*JPG') + glob.glob('*jpg'))
 if len(the_files) > 0:
     cHs.create_script_from_file_list(the_files)

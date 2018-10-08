@@ -19,13 +19,16 @@ option) any later version. See the file LICENSE.md for details.
 
 import glob, os, shlex, shutil, sys
 
+
 total_number_of_files = 5   # Total number of input files that are referenced in the auto-generated enfuse script
 debugging = False           # Be chatty about what's going on?
+
 
 def print_usage(exit_value=0):
     """Print a usage message."""
     print(__doc__)
     sys.exit(exit_value)
+
 
 def create_script_from_file_list(HDR_input_files,
                                  file_to_move=None,
@@ -139,6 +142,8 @@ def create_script_from_first_file(first_file, num_files=total_number_of_files, f
     create_script_from_file_list(HDR_input_files, file_to_delete=file_to_delete)
 
     os.chdir(oldpath)
+
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:

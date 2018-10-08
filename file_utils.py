@@ -10,7 +10,7 @@ option) any later version. See the file LICENSE.md for details.
 """
 
 
-import csv, datetime, glob, os, sys
+import csv, datetime, glob, os, shlex, subprocess, sys
 
 import exifread                     # [sudo] pip[3] install exifread; or, https://pypi.python.org/pypi/ExifRead
 
@@ -19,6 +19,8 @@ raw_photo_extensions = ('CR2', 'cr2', 'DNG', 'dng', 'RAF', 'raf', 'DCR', 'dcr', 
 jpeg_extensions = ('jpg', 'JPG', 'jpeg', 'JPEG', 'jpe', 'JPE')
 json_extensions = ('json', 'JSON')
 all_alternates = tuple(sorted(list(raw_photo_extensions + jpeg_extensions + json_extensions)))
+
+movie_extensions = ('MOV', 'mov', 'MP4', 'mp4', 'AVI', 'avi')
 
 
 def get_value_from_any_tag(filename, taglist):
@@ -37,6 +39,7 @@ def get_value_from_any_tag(filename, taglist):
         return None
     return None
 
+
 def find_unique_name(suggested_name):
     """Given a SUGGESTED_NAME, return a version of that name that is unique in the
     directory in which it occurs, either by (a) just returning SUGGESTED_NAME if it
@@ -53,6 +56,19 @@ def find_unique_name(suggested_name):
             found = True        # Signal we're done
     return the_name
 
+
+def movie_recorded_date(which_file):
+    """Tries to parse FFmpeg output to get the date the movie was recorded.
+    #FIXME: probably quite fragile.
+    """
+    output = subprocess.check_output("ffmpeg -i " + shlex.quote(which_file), shell=True).decode().split('\n')
+    try:
+        time_line = [i for i in output if 'creation_time' in i][0]
+        return ''.join([c for c in time_line.strip() if c.isdigit()])
+    except IndexError:
+        return ''.join([c for c in which_file if c.isdigit()])
+
+
 def name_from_date(which_file):
     """Get a filename for a photo based on the date the photo was taken. Try several
     possible ways to get the date; if none works, just guess based on filename.
@@ -65,12 +81,16 @@ def name_from_date(which_file):
             try:
                 dt = tags['Image DateTime'].values
             except KeyError:            # Sigh. Not all of my image-generating devices generate EXIF info in all circumstances.
-                dt = which_file         # At this point, just guess based on filename.
+                if os.path.splitext(which_file)[1] in movie_extensions:
+                    dt = movie_recorded_date(which_file)
+                else:
+                    dt = which_file         # At this point, just guess based on filename.
         dt = ''.join([char for char in dt if char.isdigit()])
         if len(dt) < 8:     # then we got filename gibberish, not a meaningful date.
             dt = ''.join([char for char in datetime.datetime.fromtimestamp(os.path.getmtime(which_file)).isoformat() if char.isdigit()])
         dt = dt.ljust(14)   # Even if it's just gibberish, make sure it's long enough gibberish
     return '%s-%s-%s_%s_%s_%s%s' % (dt[0:4], dt[4:6], dt[6:8], dt[8:10], dt[10:12], dt[12:14], os.path.splitext(which_file)[1].lower())
+
 
 def find_alt_version(orig_name, alternate_extensions):
     """Check to see if there is an alternate version of this file (e.g., a raw file
@@ -90,6 +110,7 @@ def find_alt_version(orig_name, alternate_extensions):
             return altfile
     return None                 # If we didn't find one ...
 
+
 def list_of_raws():
     """Get a list of all raw files in the current directory."""
     all_raws = [][:]
@@ -108,6 +129,7 @@ filename changes are manually mapped through the routines in this class. I
 find this helpful in my photo-postprocessing scripts, because I want to be able
 to restore the files' original names if necessary.
 """
+
 
 class FilenameMapper(object):
     """Maintains a mapping of old-to-new filenames."""
@@ -177,6 +199,7 @@ class FilenameMapper(object):
             writer = csv.writer(file_names, dialect='unix')
             writer.writerow(['original name', 'new name'])
             writer.writerows(self.mapping.items())
+
 
 
 if __name__ == "__main__":

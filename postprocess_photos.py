@@ -64,6 +64,7 @@ it writes) on these external programs:
     enfuse              enfuse                  4.1.3+dfsg-2
     exiftool            libimage-exiftool-perl  9.74-1
     exiftran            exiftran                2.09-1+b1
+    ffmpeg              ffmpeg                  7:2.8.15
 
 Other versions will often, though not necessarily always, work just fine.
 YMMV. Remember that Ubuntu is not Debian and package names may be different.
@@ -86,7 +87,7 @@ option) any later version. See the file LICENSE.md for details.
 """
 
 
-import csv, datetime, fsnmatch, glob, os, re, shlex, shutil, subprocess, sys, time
+import csv, datetime, fnmatch, glob, os, re, shlex, shutil, subprocess, sys, time
 
 import exifread                         # https://github.com/ianare/exif-py; sudo pip3 install exifread
 from PIL import Image                   # [sudo] pip[3] install Pillow; https://python-pillow.org/
@@ -160,41 +161,73 @@ def print_usage():
     "Display a message explaining the usage of the script."
     print(__doc__)
 
-def adjust_timestamps(file_list, yr=0, mo=0, days=0, hr=0, m=0, sec=0):
-    """Calls exiftran to adjust the timestamps of all files in FILE_LIST by the
+
+def adjust_timestamps(file_list, yr=0, mo=0, days=0, hr=0, m=0, sec=0, rename=True):
+    """Calls exiftool to adjust the timestamps of all files in FILE_LIST by the
     indicated amount. If any component of the date is negative, then the amount of
     time represented is subtracted from the current time for each file; otherwise,
     the amount of time is added to the current timestamp in each file.
-    
+
+    If RENAME is True (the default), the files are renamed based on the new
+    timestamps after the timestamps are adjusted.
+
     Assumes all files in FILE_LIST are in the same directory.
     """
-    if not (yr or mo or days or hr or m or sec):            # If we don't have any work to do, don't do any work.
-        return    
+    if not (yr or mo or days or hr or m or sec):            # If nothing is truthy, we don't have any work to do. So don't do any work.
+        return
     old_dir = os.getcwd()
     try:
         if os.path.dirname(file_list[0]):
             os.chdir(os.path.dirname(file_list[0]))
         sign = "-" if [i for i in [yr, mo, days, hr, m, sec] if i < 0] else "+"
         f_date = "%s:%s:%s %s:%s:%s" % (abs(yr), abs(mo), abs(days), abs(hr), abs(m), abs(sec))
-        subprocess.call('exiftool "-AllDates%s=%s" "-FileModifyDate%s=%s" -overwrite_original %s' % (sign, f_date, sign, f_date, ' '.join([shlex.quote(f) for f in file_list])), shell=True)
-        mappings = fu.FilenameMapper()
-        mappings.read_mappings('file_list.csv')
-        for f in file_list:
-            new_name = fu.find_unique_name(fu.name_from_date(f))
-            mappings.rename_and_map(f, new_name)
-        mappings.write_mappings()
+        subprocess.call('exiftool -m "-AllDates%s=%s" "-FileModifyDate%s=%s" -overwrite_original %s' % (sign, f_date, sign, f_date, ' '.join([shlex.quote(f) for f in file_list])), shell=True)
+        if rename:
+            mappings = fu.FilenameMapper()
+            mappings.read_mappings('file_names.csv')
+            for f in file_list:
+                new_name = fu.find_unique_name(fu.name_from_date(f))
+                mappings.rename_and_map(f, new_name)
+            mappings.write_mappings()
     finally:
         os.chdir(old_dir)
+
+
+def set_timestamps(file_list, yr, mo, days, hr, m, sec=0):
+    """Calls exiftran to set the EXIF timestamps of all files in FILE_LIST to the
+    indicated date and time. Why multiple files might have the same timestamp, I
+    don't know; but it's possible to do so.
+
+    This function, unlike its similarly-named counterpart above, does not rename
+    files after giving them an EXIF timestamp, because my own postprocessing
+    workflow tends to use this only on files entirely without EXIF data in the first
+    place: scanned negatives, primarily. In any case, these files that come without
+    ANY date already embedded tend to be named according to criteria other than
+    embedded datetimes: negative numbers, primarily.
+
+    Assumes all files in FILE_LIST are in the same directory.
+    """
+    old_dir = os.getcwd()
+    try:
+        if os.path.dirname(file_list[0]):
+            os.chdir(os.path.dirname(file_list[0]))
+        f_date = "%s:%s:%s %s:%s:%s" % (yr, mo, days, hr, m, sec)
+        subprocess.call('exiftool -m "-AllDates=%s" "-FileModifyDate=%s" -overwrite_original %s' % (f_date, f_date, ' '.join([shlex.quote(f) for f in file_list])), shell=True)
+    finally:
+        os.chdir(old_dir)
+
 
 def _increment_timestamp(file_list):
     """Add one hour to the timestamp for each file in FILE_LIST."""
     assert isinstance(file_list, (list, tuple))
     adjust_timestamps(file_list, hr=1)
-    
+
+
 def _decrement_timestamp(file_list):
     """Subtract one hour from the timestamp for each file in FILE_LIST."""
     assert isinstance(file_list, (list, tuple))
     adjust_timestamps(file_list, hr=-1)
+
 
 def spring_forward():
     """Adjust the EXIF timestamps on the batch of photos in this directory by
@@ -209,6 +242,7 @@ def spring_forward():
     """
     _increment_timestamp(sorted(list(set(glob.glob('*jpg') + glob.glob('*JPG')))))
 
+
 def fall_back():
     """Adjust the EXIF timestamps on the batch of photos in this directory by
     subtracting one hour from them, as if I had forgotten to do this after the DST
@@ -221,6 +255,7 @@ def fall_back():
     directory.
     """
     _decrement_timestamp(sorted(list(set(glob.glob('*jpg') + glob.glob('*JPG')))))
+
 
 def empty_thumbnails():
     """Create an empty .thumbnails directory and make it writable for no one.
@@ -241,6 +276,7 @@ def empty_thumbnails():
         print('\n') # If an error occurs, end the status line that's waiting to be ended
         raise           #  then let the error propagate.
     print(' ... done.\n\n')
+
 
 def delete_spurious_raw_files():
     """This function performs a few related cleanup tasks.
@@ -292,6 +328,7 @@ def delete_spurious_raw_files():
             else:                       # We SHOULD have already covered this ...
                 os.remove(which_raw)        # ... but just for the sake of being perfectly sure ...
 
+
 def rename_photos():
     """Auto-rename files based on the time when they were taken. This routine
     DOES NOT REQUIRE that a set of filename mappings be read into memory;
@@ -341,6 +378,7 @@ def rename_photos():
         raise
     print('     ... done.\n\n')
 
+
 def restore_file_names():
     """Restore original file names, based on the dictionary in memory, which is
     assumed to be comprehensive and intact. This routine REQUIRES that a set of
@@ -352,6 +390,7 @@ def restore_file_names():
         if os.path.exists(new_name):
             print('Renaming "%s" to "%s".' % (new_name, original_name))
             os.rename(new_name, original_name)
+
 
 def rotate_photos():
     """Auto-rotate all photos using exiftran. DOES NOT REQUIRE that a set of
@@ -371,6 +410,7 @@ def rotate_photos():
         print()             # Give some indication of when we've ended a block of 128 photos.
         subprocess.call('exiftran -aigp %s' % ' '.join([shlex.quote(f) for f in all_photos]), shell=True)
         all_photos = rest
+
 
 def process_shell_scripts():
     """Rewrite any shell scripts created by Magic Lantern.
@@ -424,6 +464,7 @@ def process_shell_scripts():
         raise
     print('\n ... done rewriting enfuse scripts.\n')
 
+
 def run_shell_scripts():
     """Run the executable shell scripts in the current directory. Make them non-
     executable after they have been run.
@@ -444,6 +485,7 @@ def run_shell_scripts():
         os.system('chmod a-x -R %s' % shlex.quote(which_script))
     print("\n\n ... done running scripts.")
 
+
 def create_HDRs_from_raws():
     """For every raw file, create a tonemap from it, creating an intermediate
     script along the way, which it runs in order to create the tonemap.
@@ -456,6 +498,7 @@ def create_HDRs_from_raws():
         print("\nCreating HDR JPEGs (and intermediate scripts) from %d raw files ...\n\n" % len(the_raws))
         for which_raw in the_raws:
             hfr.HDR_tonemap_from_raw(which_raw)
+
 
 def hang_around():
     """Offers to hang around, watching for executable shell scripts in the
@@ -479,12 +522,13 @@ def hang_around():
         else:
             time.sleep(30)
 
+
 # OK, let's go
 if __name__ == "__main__":
 
     if force_debug:
         # Whatever statements actually need to be run in an IDE go here.
-        os.chdir('/home/patrick/Photos/2017-09-30')
+        os.chdir('/home/patrick/Photos/2018-10-07')
         # sys.exit()
 
     if len(sys.argv) > 1:

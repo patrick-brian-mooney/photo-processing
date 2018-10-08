@@ -34,31 +34,31 @@ root = Tk()                         # Top-level TKinter object
 root.title('Image Processing Options')
 
 
-date_fields = ('YYYY', 'MO', 'DD', 'HH', 'MM', 'SS')
-
-
 class NonIdioticStringVar(StringVar):
     """Let's make these easily displayable for debugging, shall we?"""
     def __repr__(self):
         return "'%s'" % self.get()
-    
+
     def __str__(self):
         return self.get()
 
 
-class DateTimeDialog(Frame):
+date_fields = ('YYYY', 'MO', 'DD', 'HH', 'MM', 'SS')
+
+
+class DateTimeAdjustDialog(Frame):
     """Get a date/time combo from the user. Used in EXIF data-related situations."""
-    
+
     def ret_func(self):
-        """Called when OK is pushed.""" 
+        """Called when OK is pushed."""
         d = { f: self.new_date[f].get() for f in date_fields }
         self.callback(int(d['YYYY']), int(d['MO']), int(d["DD"]), int(d['HH']), int(d['MM']), int(d['SS']))
         self.master.destroy()
-        
+
     def cancel_func(self):
         """Destroy the window without doing anything else."""
         self.master.destroy()
-    
+
     def __init__(self, master=None, callback=None):
         """We pack bottom-up here so that subclasses can easily add to the top of the
         frame, should they so desire.
@@ -82,12 +82,31 @@ class DateTimeDialog(Frame):
             row.pack(side=TOP, fill=X)
             lab.pack(side=LEFT)
             ent.pack(side=RIGHT, expand=YES, fill=X)
-            
 
-def adjust_timestamp(file_list):
-    """ """
+
+class DateTimeSetDialog(DateTimeAdjustDialog):
+    pass
+
+
+def adjust_timestamp(file_list, rename=True):
+    """Pop up a dialog that asks the user by how much to adjust an EXIF timestamp. If
+    RENAME is True (the default), the files are renamed based on their new
+    timestamps after the timestamps are adjusted.
+    """
+    #FIXME: we need a text label at the top telling the user what to do.
     dialog = Toplevel()
-    DateTimeDialog(master=dialog, callback=lambda yr, mo, days, hr, m, s: pp.adjust_timestamps(file_list, yr, mo, days, hr, m, s)).pack()
+    DateTimeAdjustDialog(master=dialog, callback=lambda yr, mo, days, hr, m, s: pp.adjust_timestamps(file_list, yr, mo, days, hr, m, s, rename=rename)).pack()
+    dialog.grab_set()
+    dialog.focus_set()
+    dialog.wait_window()
+    sys.exit()
+
+
+def set_timestamp(file_list):
+    """Pop up a dialog that asks the user what the EXIF timestamp should be."""
+    #FIXME: we need a text label at the top telling the user what to do.
+    dialog = Toplevel()
+    DateTimeSetDialog(master=dialog, callback=lambda yr, mo, days, hr, m, s: pp.set_timestamps(file_list, yr, mo, days, hr, m, s)).pack()
     dialog.grab_set()
     dialog.focus_set()
     dialog.wait_window()
@@ -103,7 +122,7 @@ def increment_and_rename(file_list):
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to increment_and_rename()"
     log_it("INFO: increment_and_rename() called for %d files" % len(file_list), 2)
     mappings = fu.FilenameMapper()
-    mappings.read_mappings('file_list.csv')
+    mappings.read_mappings('file_names.csv')
     for f in file_list:
         log_it("INFO: incrementing timestamp on '%s' and renaming" % f, 3)
         pp._increment_timestamp([f])
@@ -258,47 +277,32 @@ if __name__ == "__main__":
         assert base_path == os.path.split(i)[0], "ERROR: file_list has files in different directories."
     file_list = [os.path.basename(x) for x in file_list]
 
-    label = Label(root, text='\nWhat would you like to do with these %d files?\n\n' % len(file_list))
-    label.pack(side=TOP, fill=X)
-    label = Button(root, text="Adjust timestamp(s) and rename", command=lambda: adjust_timestamp(file_list))
-    label.pack(side=TOP, fill=X)
-    button = Button(root, text="Add 1 hour to timestamp(s) and rename", command=lambda: increment_and_rename(file_list))
-    button.pack(side=TOP, fill=X)
-    button = Button(root, text="Subtract 1 hour from timestamp(s) and rename", command=lambda: decrement_and_rename(file_list))
-    button.pack(side=TOP, fill=X)
-    button = Button(root, text="Delete, and delete all sidecars", command=lambda: delete_with_any_alternates(file_list))
-    button.pack(side=TOP, fill=X)
+    Label(root, text='\nWhat would you like to do with these %d files?\n\n' % len(file_list)).pack(side=TOP, fill=X)
 
-    label = Label(root, text='\n\nResize')
-    label.pack(side=TOP, fill=X)
-    button = Button(root, text="Resize to 720p", command=lambda: resize_files(file_list, 720))
-    button.pack(side=TOP, fill=X)
-    button = Button(root, text="Resize to 1920p", command=lambda: resize_files(file_list, 1920))
-    button.pack(side=TOP, fill=X)
-    label = Label(root, text='\n\nEXIF-aware JPEG transformations')
-    label.pack(side=TOP, fill=X)
-    button = Button(root, text="Rotate automatically", command=lambda: exif_rotate(file_list, "a"))
-    button.pack(side=TOP, fill=X)
-    button = Button(root, text="Rotate clockwise", command=lambda: exif_rotate(file_list, "9"))
-    button.pack(side=TOP, fill=X)
-    button = Button(root, text="Rotate counterclockwise", command=lambda: exif_rotate(file_list, "2"))
-    button.pack(side=TOP, fill=X)
-    button = Button(root, text="Rotate 180 degrees", command=lambda: exif_rotate(file_list, "1"))
-    button.pack(side=TOP, fill=X)
-    button = Button(root, text="Regenerate JPEG thumbnail", command=lambda: regen_thumb(file_list))
-    button.pack(side=TOP, fill=X)
+    Button(root, text="Adjust timestamp(s) and rename", command=lambda: adjust_timestamp(file_list)).pack(side=TOP, fill=X)
+    Button(root, text="Adjust timestamp(s) without renaming", command=lambda: adjust_timestamp(file_list, rename=False)).pack(side=TOP, fill=X)
+    Button(root, text="Assign timestamp(s) without renaming", command=lambda: set_timestamp(file_list)).pack(side=TOP, fill=X)
+    Button(root, text="Add 1 hour to timestamp(s) and rename", command=lambda: increment_and_rename(file_list)).pack(side=TOP, fill=X)
+    Button(root, text="Subtract 1 hour from timestamp(s) and rename", command=lambda: decrement_and_rename(file_list)).pack(side=TOP, fill=X)
+    Button(root, text="Delete, and delete all sidecars", command=lambda: delete_with_any_alternates(file_list)).pack(side=TOP, fill=X)
 
-    label = Label(root, text='\n\nHDR Processing')
-    label.pack(side=TOP, fill=X)
-    button = Button(root, text="Create HDR script for all selected files", command=lambda: script_from_files(file_list))
-    button.pack(side=TOP, fill=X)
-    button = Button(root, text="Create HDR tonemap script(s) from corresponding raw(s)", command=lambda: produce_raw_scripts(file_list))
-    button.pack(side=TOP, fill=X)
-    button = Button(root, text="HDR tonemap(s) from corresponding raw(s)", command=lambda: tonemap_raws(file_list))
-    button.pack(side=TOP, fill=X)
-    button = Button(root, text="Open corresponding raw(s) in Luminance", command=lambda: open_in_luminance(file_list))
-    button.pack(side=TOP, fill=X)
+    Label(root, text='\n\nResize').pack(side=TOP, fill=X)
+    Button(root, text="Resize to 720p", command=lambda: resize_files(file_list, 720)).pack(side=TOP, fill=X)
+    Button(root, text="Resize to 1920p", command=lambda: resize_files(file_list, 1920)).pack(side=TOP, fill=X)
+    Label(root, text='\n\nEXIF-aware JPEG transformations').pack(side=TOP, fill=X)
+    Button(root, text="Rotate automatically", command=lambda: exif_rotate(file_list, "a")).pack(side=TOP, fill=X)
+    Button(root, text="Rotate clockwise", command=lambda: exif_rotate(file_list, "9")).pack(side=TOP, fill=X)
+    Button(root, text="Rotate counterclockwise", command=lambda: exif_rotate(file_list, "2")).pack(side=TOP, fill=X)
+    Button(root, text="Rotate 180 degrees", command=lambda: exif_rotate(file_list, "1")).pack(side=TOP, fill=X)
+    Button(root, text="Regenerate JPEG thumbnail", command=lambda: regen_thumb(file_list)).pack(side=TOP, fill=X)
+
+    Label(root, text='\n\nHDR Processing').pack(side=TOP, fill=X)
+    Button(root, text="Create HDR script for all selected files", command=lambda: script_from_files(file_list)).pack(side=TOP, fill=X)
+    Button(root, text="Create HDR tonemap script(s) from corresponding raw(s)", command=lambda: produce_raw_scripts(file_list)).pack(side=TOP, fill=X)
+    Button(root, text="HDR tonemap(s) from corresponding raw(s)", command=lambda: tonemap_raws(file_list)).pack(side=TOP, fill=X)
+    Button(root, text="Open corresponding raw(s) in Luminance", command=lambda: open_in_luminance(file_list)).pack(side=TOP, fill=X)
 
     root.mainloop()
+
 else:
     root.withdraw()

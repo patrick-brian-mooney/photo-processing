@@ -30,7 +30,7 @@ you would include:
     * automatically optimizing control points, which is almost certainly a
       good idea in most, but not all, cases;
     * trying to find a suitable projection type, which is often basically
-      successful but rarely makes the absolute best possible choice;  
+      successful but rarely makes the absolute best possible choice;
     * doing photometric optimization, which wastes time if the shots were
       manually shot at the same exposure;
     * trying to find vertical control points, which is often successful and
@@ -49,9 +49,11 @@ are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
 """
 
+
 import os, glob, shlex, subprocess
 
 import postprocess_photos as pp     # https://github.com/patrick-brian-mooney/photo-processing/blob/master/postprocess_photos.py
+
 
 the_files = sorted(list(set(glob.glob('*JPG') + glob.glob('*jpg'))))
 the_files_list = ' '.join([shlex.quote(f) for f in the_files])
@@ -62,7 +64,7 @@ if the_files:
 #     https://github.com/patrick-brian-mooney/photo-processing/blob/master/create_panorama_script.py
 pto_gen -o %s %s
 """ % (project_file, the_files_list)
-    
+
     the_script = the_script + """
 cpfind --multirow --celeste -o %s %s
 cpclean -o %s %s
@@ -71,13 +73,13 @@ autooptimiser -a -l -s -m -o %s %s
 pano_modify --canvas=AUTO --crop=AUTO -o %s %s
 # hugin_executor -s %s                              # Uncomment to stitch the panorama immediately
 """ % tuple([project_file] * 11)
-    
+
     script_file_name = os.path.splitext(the_files[0])[0] + '-pano.SH'
     with open(script_file_name, mode='w') as script_file:
         script_file.write(''.join(the_script))
-    
+
     os.chmod(script_file_name, os.stat(script_file_name).st_mode | 0o111)    # or, in Bash, "chmod a+x SCRIPT_FILE_NAME"
-    
+
     # pp.run_shell_scripts()    # uncomment this line to automatically run all scripts in the directory.
 else:
     raise IndexError('You must call create_panorama_script.py in a folder with at least one .jpg or .JPG file;\n   current working directory is %s' % os.getcwd())

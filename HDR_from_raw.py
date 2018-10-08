@@ -17,7 +17,7 @@ option) any later version. See the file LICENSE.md for details.
 """
 
 
-import os, shlex, subprocess, sys
+import os, shlex, subprocess, sys, time
 import statistics                   # And therefore we require Python 3.4.
 
 from PIL import Image               # [sudo] pip[3] install Pillow; https://python-pillow.org/
@@ -47,6 +47,7 @@ def massage_file_list(selected_files):
     assert len(selected_files) > 0, "ERROR: Unable to create any viable files from raw photo"
     return selected_files
 
+
 def produce_shifted_tonemap(rawfile, base_ISO, base_Ev, Ev_shift):
     """Produce a TIFF-format tonemap of RAWFILE at a given EV_SHIFT relative to
     BASE_ISO. Return the name of the TIFF file so produced.
@@ -56,6 +57,7 @@ def produce_shifted_tonemap(rawfile, base_ISO, base_Ev, Ev_shift):
     command = "dcraw -T -c -v -w -W -b %s %s > %s" % (2 ** Ev_shift, shlex.quote(rawfile), shlex.quote(outfile))
     subprocess.call(command, shell=True)
     return outfile
+
 
 def get_smoothed_image_histogram(image_filename):
     """Get an image brightness histogram for IMAGE_FILENAME, and then do some smoothing
@@ -72,7 +74,10 @@ def get_smoothed_image_histogram(image_filename):
     h = [ v if v > minimum_threshold else 0 for v in h ]            # Anything below threshold is dropped to zero
     return h
 
+
+
 clipping_threshold = 144		# If >= half the image's data is within this dist. of the relevant edge, we'll consider it clipped.
+
 
 def is_right_edge_clipping(histo):
     """Returns True if the histogram HISTO is clipped at the right edge, or False
@@ -83,6 +88,7 @@ def is_right_edge_clipping(histo):
     """
     return (sum(histo[(256-clipping_threshold):]) >= sum(histo[:(256-clipping_threshold)]))
 
+
 def is_left_edge_clipping(histo):
     """Returns True if the histogram HISTO is clipped at the left edge, or False
     otherwise. We treat a False from this function as a criterion for detecting
@@ -92,6 +98,7 @@ def is_left_edge_clipping(histo):
     """
     return (sum(histo[:clipping_threshold]) >= sum(histo[clipping_threshold:]))
 
+
 def no_lower_quarter_data(histo):
     """Detect whether all of the data in a (smoothed, presumably) brightness
     histogram is in the upper three-quarters of the brightness graph. We treat
@@ -99,6 +106,7 @@ def no_lower_quarter_data(histo):
     image for the tonemap.
     """
     return sum(histo[:63]) == 0
+
 
 def create_HDR_script(rawfile):
     """Create a series of EV-shifted versions of RAWFILE, then produce a script that
@@ -168,16 +176,23 @@ def create_HDR_script(rawfile):
     finally:
         os.chdir(olddir)
 
+
 def HDR_tonemap_from_raw(rawfile):
     """Write an HDR-creation script for RAWFILE, then run it."""
     raw_script = create_HDR_script(rawfile)
     subprocess.call(shlex.quote(os.path.abspath(raw_script)), shell=True)
 
+
+
 if __name__ == "__main__":
     if force_debug:
-        sys.argv[1:] = ['/home/patrick/Desktop/working/HDR samples/2017-05-22_12_51_32_1.CR2']
+        sys.argv[1:] = ['/home/patrick/Photos/film/by roll number/1067/07.dng', '/home/patrick/Desktop/working/HDR samples/2017-05-22_12_51_32_1.CR2']
     if len(sys.argv) == 1 or sys.argv[1] in ['--help', '-h']:
         print(__doc__)
         sys.exit(0)
     for whichfile in sys.argv[1:] :
-        HDR_tonemap_from_raw(whichfile)
+        if whichfile:
+            print("Processing %s ..." % whichfile)
+            time.sleep(0.5)
+            HDR_tonemap_from_raw(whichfile)
+        else: print("Skipping parameter %s that was passed in: it's not truthy!" % whichfile)
