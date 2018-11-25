@@ -54,18 +54,19 @@ import os, glob, shlex, subprocess
 
 import postprocess_photos as pp     # https://github.com/patrick-brian-mooney/photo-processing/blob/master/postprocess_photos.py
 
-
-the_files = sorted(list(set(glob.glob('*JPG') + glob.glob('*jpg'))))
-the_files_list = ' '.join([shlex.quote(f) for f in the_files])
-project_file = shlex.quote(the_files[0] + ".pto")
-if the_files:
-    the_script = """#!/usr/bin/env bash
+def produce_script(the_files=None):
+    if not the_files:
+        the_files = sorted(list(set(glob.glob('*JPG') + glob.glob('*jpg'))))
+    the_files_list = ' '.join([shlex.quote(f) for f in the_files])
+    project_file = shlex.quote(the_files[0] + ".pto")
+    if the_files:
+        the_script = """#!/usr/bin/env bash
 # This script written by Patrick Mooney's create_panorama_script.py script, see
 #     https://github.com/patrick-brian-mooney/photo-processing/blob/master/create_panorama_script.py
 pto_gen -o %s %s
 """ % (project_file, the_files_list)
 
-    the_script = the_script + """
+        the_script = the_script + """
 cpfind --multirow --celeste -o %s %s
 cpclean -o %s %s
 linefind -o %s %s
@@ -74,12 +75,16 @@ pano_modify --canvas=AUTO --crop=AUTO -o %s %s
 # hugin_executor -s %s                              # Uncomment to stitch the panorama immediately
 """ % tuple([project_file] * 11)
 
-    script_file_name = os.path.splitext(the_files[0])[0] + '-pano.SH'
-    with open(script_file_name, mode='w') as script_file:
-        script_file.write(''.join(the_script))
+        script_file_name = os.path.splitext(the_files[0])[0] + '-pano.SH'
+        with open(script_file_name, mode='w') as script_file:
+            script_file.write(''.join(the_script))
 
-    os.chmod(script_file_name, os.stat(script_file_name).st_mode | 0o111)    # or, in Bash, "chmod a+x SCRIPT_FILE_NAME"
+        os.chmod(script_file_name, os.stat(script_file_name).st_mode | 0o111)    # or, in Bash, "chmod a+x SCRIPT_FILE_NAME"
 
-    # pp.run_shell_scripts()    # uncomment this line to automatically run all scripts in the directory.
-else:
-    raise IndexError('You must call create_panorama_script.py in a folder with at least one .jpg or .JPG file;\n   current working directory is %s' % os.getcwd())
+        # pp.run_shell_scripts()    # uncomment this line to automatically run all scripts in the directory.
+    else:
+        raise IndexError('You must call create_panorama_script.py in a folder with at least one .jpg or .JPG file;\n   current working directory is %s' % os.getcwd())
+
+
+if __name__ == "__main__":
+    produce_script()
