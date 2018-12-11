@@ -23,6 +23,7 @@ import postprocess_photos as pp
 import file_utils as fu
 import create_HDR_script as cHs
 import HDR_from_raw as Hfr
+import create_panorama_script as cps
 
 import patrick_logger               # https://github.com/patrick-brian-mooney/python-personal-library/blob/master/patrick_logger.py
 from patrick_logger import log_it
@@ -236,6 +237,14 @@ def open_in_luminance(file_list):
     sys.exit()
 
 
+def create_panorama_script(file_list):
+    """Creates a default panorama-creation script from the selected files."""
+    assert isinstance(file_list, (list, tuple))
+    assert len(file_list) >= 2, "ERROR: you must specify at least two files from which to create a panorama"
+    cps.produce_script(file_list)
+    sys.exit()
+
+
 def exif_rotate(file_list, orientation):
     """Rotate each JPEG file in FILE_LIST to the specified ORIENTATION. ORIENTATION
     is a string constant that constitutes a command-line flag to the exiftran
@@ -265,7 +274,12 @@ def resize_files(file_list, longest_side):
     sys.exit()
 
 
+force_debug = False
+
 if __name__ == "__main__":
+    if force_debug:
+        import glob
+        sys.argv[1:] = glob.glob('/home/patrick/Photos/2018-09-04/DSCN*.JPG')
     file_list = sys.argv[1:]
     log_it("OK, we're starting, and operating on %d files" % len(file_list), 2)
     assert len(file_list) > 0, "ERROR: You must specify at least one file on which to operate."
@@ -296,11 +310,12 @@ if __name__ == "__main__":
     Button(root, text="Rotate 180 degrees", command=lambda: exif_rotate(file_list, "1")).pack(side=TOP, fill=X)
     Button(root, text="Regenerate JPEG thumbnail", command=lambda: regen_thumb(file_list)).pack(side=TOP, fill=X)
 
-    Label(root, text='\n\nHDR Processing').pack(side=TOP, fill=X)
+    Label(root, text='\n\nHDR and Panorama Processing').pack(side=TOP, fill=X)
     Button(root, text="Create HDR script for all selected files", command=lambda: script_from_files(file_list)).pack(side=TOP, fill=X)
     Button(root, text="Create HDR tonemap script(s) from corresponding raw(s)", command=lambda: produce_raw_scripts(file_list)).pack(side=TOP, fill=X)
-    Button(root, text="HDR tonemap(s) from corresponding raw(s)", command=lambda: tonemap_raws(file_list)).pack(side=TOP, fill=X)
-    Button(root, text="Open corresponding raw(s) in Luminance", command=lambda: open_in_luminance(file_list)).pack(side=TOP, fill=X)
+    Button(root, text="HDR tonemap(s) from (corresponding) raw(s)", command=lambda: tonemap_raws(file_list)).pack(side=TOP, fill=X)
+    Button(root, text="Open (corresponding) raw(s) in Luminance", command=lambda: open_in_luminance(file_list)).pack(side=TOP, fill=X)
+    Button(root, text="Panorama script from all selected files", command=lambda: create_panorama_script(file_list)).pack(side=TOP, fill=X)
 
     root.mainloop()
 

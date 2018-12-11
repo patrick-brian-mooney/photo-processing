@@ -98,7 +98,7 @@ import file_utils as fu                 # https://github.com/patrick-brian-moone
 
 
 debugging = True
-force_debug = True
+force_debug = False
 
 raw_must_be_paired_with_JPEG = False    # Delete raw photos that don't have a pre-existing JPEG counterpart
 delete_small_raws = True                # Delete raw photos that are paired with small JPEGs.
@@ -174,6 +174,7 @@ def adjust_timestamps(file_list, yr=0, mo=0, days=0, hr=0, m=0, sec=0, rename=Tr
     Assumes all files in FILE_LIST are in the same directory.
     """
     if not (yr or mo or days or hr or m or sec):            # If nothing is truthy, we don't have any work to do. So don't do any work.
+        print("No timeshift specified! Quitting ...")
         return
     old_dir = os.getcwd()
     try:
