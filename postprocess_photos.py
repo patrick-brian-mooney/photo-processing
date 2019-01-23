@@ -100,7 +100,7 @@ import file_utils as fu                 # https://github.com/patrick-brian-moone
 debugging = True
 force_debug = False
 
-raw_must_be_paired_with_JPEG = False    # Delete raw photos that don't have a pre-existing JPEG counterpart
+raw_must_be_paired_with_JPEG = False    # If True, delete raw photos that don't have a pre-existing JPEG counterpart
 delete_small_raws = True                # Delete raw photos that are paired with small JPEGs.
 maximum_short_side_length = 5000        # If the longest side of an image is at least this long, it's not a "small image."
 
@@ -529,7 +529,7 @@ if __name__ == "__main__":
 
     if force_debug:
         # Whatever statements actually need to be run in an IDE go here.
-        os.chdir('/home/patrick/Photos/2018-10-07')
+        os.chdir('/home/patrick/Photos/2018-12-17')
         # sys.exit()
 
     if len(sys.argv) > 1:

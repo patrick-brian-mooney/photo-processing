@@ -75,7 +75,8 @@ cd %s
         the_script += "\nalign_image_stack -xyzdivv -a HDR_AIS %s" % ' '.join([shlex.quote(f) for f in HDR_input_files])
 
     the_script += "\nenfuse --output=%s HDR_AIS*tif" % (shlex.quote(output_file))
-    the_script += "\nconvert %s -quality 100 %s" % (shlex.quote(output_file), shlex.quote(os.path.splitext(output_file)[0] + ".JPG"))
+    the_script += "\nconvert %s -quality 98 %s" % (shlex.quote(output_file), shlex.quote(os.path.splitext(
+            output_file)[0] + ".JPG"))
     the_script += "\nrm %s\n\n" % shlex.quote(output_file)
 
     if metadata_source_file:

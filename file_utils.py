@@ -22,6 +22,9 @@ all_alternates = tuple(sorted(list(raw_photo_extensions + jpeg_extensions + json
 
 movie_extensions = ('MOV', 'mov', 'MP4', 'mp4', 'AVI', 'avi')
 
+darkframe_location = '/home/patrick/Photos/t7i_darkframe_for_dcraw.pgm'
+measured_darkness_level = "2047.901764"     # pamsumm -mean on the previously specified image.
+
 
 def get_value_from_any_tag(filename, taglist):
     """Read the EXIF tags from the file in FILENAME, then return the value of the

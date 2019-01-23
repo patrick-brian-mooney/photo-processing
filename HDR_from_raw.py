@@ -32,6 +32,10 @@ from patrick_logger import log_it
 patrick_logger.verbosity_level = 3
 
 shifts = range(-5, 6)       # Range of Ev adjustments. This is probably the maximum plausible range from a single 12- or 14-bit raw file.
+clipping_threshold = 144    # If >= half the image's data is within this distance of the relevant edge, we'll consider it clipped.
+
+
+avoid_darkness_adjustment = False       # For most circumstances (i.e., when using my main camera, which this procedure currently assumes), we want to perform darkness adjustment. However, sometimes it's beneficial to surpress this (e.g., when dealing with scanned negatives). 
 
 force_debug = False
 
@@ -54,7 +58,13 @@ def produce_shifted_tonemap(rawfile, base_ISO, base_Ev, Ev_shift):
     """
     log_it("INFO: creating, tagging, and testing a file for Ev_shift %d" % Ev_shift, 2)
     outfile = 'HDR_AIS_' + os.path.splitext(rawfile)[0] + ("+" if Ev_shift >= 0 else "") + str(Ev_shift) + ".tif"
-    command = "dcraw -T -c -v -w -W -b %s %s > %s" % (2 ** Ev_shift, shlex.quote(rawfile), shlex.quote(outfile))
+    command = "dcraw -T -c -v -w -W"
+    if not avoid_darkness_adjustment:               # unless we explicitly want to perform NO darkness-level pre-processing ...
+        if os.path.isfile(fu.darkframe_location):   # If there is a darkframe, subtract it from the raw image
+            command += " -K %s" % shlex.quote(fu.darkframe_location)
+        else:                                       # Otherwise, just adjust the darkness level of the output
+            command += "-k %s" % fu.measured_darkness_level
+    command += " -b %s %s > %s" % (2 ** Ev_shift, shlex.quote(rawfile), shlex.quote(outfile))
     subprocess.call(command, shell=True)
     return outfile
 
@@ -75,10 +85,6 @@ def get_smoothed_image_histogram(image_filename):
     return h
 
 
-
-clipping_threshold = 144		# If >= half the image's data is within this dist. of the relevant edge, we'll consider it clipped.
-
-
 def is_right_edge_clipping(histo):
     """Returns True if the histogram HISTO is clipped at the right edge, or False
     otherwise. We treat a False from this function as a criterion for detecting
@@ -96,7 +102,7 @@ def is_left_edge_clipping(histo):
 
     Assumes that HISTO is a 256-item brightness histogram.
     """
-    return (sum(histo[:clipping_threshold]) >= sum(histo[clipping_threshold:]))
+    return (sum(histo[:clipping_threshold]) >= sum(histo[clipping_threshold:]))             #FIXME: I think we need different numerical thresholds for "right-edge clipping" and "left-edge clipping." I think this will solve the "HDRs often come out too bright" problem. Let's test this when we get some time.
 
 
 def no_lower_quarter_data(histo):
@@ -134,7 +140,7 @@ def create_HDR_script(rawfile):
             if found_end:                               # If we've already found the bottom image ...
                 os.unlink(shift_mappings[current_shift])# ... delete this image, which is past it ...
                 del(shift_mappings[current_shift])      # ... and track that we don't have it.
-            elif found_beginning:                       # Otherwise, check if this is the last image, i.e. 1st one w/o right-edge clipping.
+            elif found_beginning:                       # Otherwise, check if this is the last image, i.e. 1st one w/ left-edge clipping.
                 if is_left_edge_clipping(h):
                     found_end = True
                     os.unlink(shift_mappings[current_shift])
@@ -186,7 +192,7 @@ def HDR_tonemap_from_raw(rawfile):
 
 if __name__ == "__main__":
     if force_debug:
-        sys.argv[1:] = ['/home/patrick/Photos/film/by roll number/1067/07.dng', '/home/patrick/Desktop/working/HDR samples/2017-05-22_12_51_32_1.CR2']
+        sys.argv[1:] = ['/home/patrick/Photos/2018-12-17/2018-12-17_15_01_53_1.cr2', '/home/patrick/Photos/2018-12-17/2018-12-16_20_29_10_1.cr2']
     if len(sys.argv) == 1 or sys.argv[1] in ['--help', '-h']:
         print(__doc__)
         sys.exit(0)
