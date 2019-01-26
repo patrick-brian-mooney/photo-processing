@@ -64,7 +64,7 @@ def movie_recorded_date(which_file):
     """Tries to parse FFmpeg output to get the date the movie was recorded.
     #FIXME: probably quite fragile.
     """
-    result = subprocess.run(["ffmpeg", "-i", which_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)       # And we therefore require Python 3.5.
+    result = subprocess.run([config.executable_location("ffmpeg"), "-i", which_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)       # And we therefore require Python 3.5.
     output = result.stderr.decode().split('\n')     # FFmpeg returns result code 1 if no action specified. That's OK.
     try:
         time_line = [i for i in output if 'creation_time' in i][0]
@@ -130,7 +130,7 @@ Note that there is no claim made to maintain intermediate names the file may
 have had. The intent is to make it possible to restore the original name of a
 set of files after a series of filename changes. Doing this requires that all
 filename changes are manually mapped through the routines in this class. I
-find this helpful in my photo-postprocessing scripts, because I want to be able
+find this helpful in my photo-postprocessing scripts because I want to be able
 to restore the files' original names if necessary.
 """
 

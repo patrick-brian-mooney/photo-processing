@@ -14,24 +14,35 @@ option) any later version. See the file LICENSE.md for details.
 """
 
 
-import platform, shlex, subprocess, sys
+import os, platform, shlex, subprocess, sys
 
 
 # The list of executable programs and their locations. Anything whose value is set to None will be searched for in
-# the user's $PATH. If the executable is not in the $PATH, set it here.
+# the user's $PATH. If the executable is not in the $PATH, it can be set manually here. Note that some paths set here
+# are not actually called by any of the photo-processing scripts directly: instead, they are called by bash scripts
+# written by the photo-postprocessing scripts. They go here both for completeness's sake and because this forces a
+# check for their existince, which means that the relevant "program not installed" error is thrown early and
+# intelligibly by this script, instead of cryptically when the user tries to (implicitly or explicitly) run the bash
+# script. Note that other paths that need to be accessible can be set here manually or procedurally, too.
 executables = {
     'exiftool': None,
     'exiftran': None,
     'luminance-hdr': None,
     'mogrify': None,
     'ffmpeg': None,
+    'dcraw': None,
+    'align_image_stack': None,
+    'enfuse': None,
+    'convert': None,
+    'photo-processing': os.path.split(os.path.abspath(sys.argv[0]))[0],   # Well ... path to the folder containing the current script, actually. #FIXME: this will break if we move scripts around.
 }
 
 
 def executable_location(executable_name):
     """Return the known location for EXECUTABLE_NAME."""
-    assert executable_name, "ERROR: no known location for %s!\n\nIs the externals.py module properly set up?" % executable_name
-    return executables(executable_name)
+    assert executable_name in executables, "ERROR: no known location for %s!\n\nIs the externals.py module properly set up?" % executable_name
+    return executables[executable_name]
+
 
 def populate_executables():
     """Populate the list of external executable programs."""
@@ -44,6 +55,7 @@ def populate_executables():
             print("Please be sure it is installed and located in your system $PATH.")
             print("The system complained: %s" % err)
             sys.exit(1)
+
 
 def startup():
     """Handle basic startup tasks: after making sure we're not running under Windows,

@@ -50,9 +50,7 @@ option) any later version. See the file LICENSE.md for details.
 """
 
 
-import os, glob, shlex, subprocess
-
-import postprocess_photos as pp     # https://github.com/patrick-brian-mooney/photo-processing/blob/master/postprocess_photos.py
+import os, glob, shlex
 
 def produce_script(the_files=None):
     if not the_files:
@@ -80,8 +78,6 @@ pano_modify --canvas=AUTO --crop=AUTO -o %s %s
             script_file.write(''.join(the_script))
 
         os.chmod(script_file_name, os.stat(script_file_name).st_mode | 0o111)    # or, in Bash, "chmod a+x SCRIPT_FILE_NAME"
-
-        # pp.run_shell_scripts()    # uncomment this line to automatically run all scripts in the directory.
     else:
         raise IndexError('You must call create_panorama_script.py in a folder with at least one .jpg or .JPG file;\n   current working directory is %s' % os.getcwd())
 

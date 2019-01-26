@@ -56,7 +56,6 @@ def create_script_from_file_list(HDR_input_files,
     of the images are already aligned.
     """
     output_file = os.path.splitext(HDR_input_files[0])[0].strip().lstrip('HDR_AIS_').strip() + "_HDR.TIFF"
-    output_TIFF_base = os.path.splitext(output_file)[0].strip().replace('-','').replace('_','')
     wdir = os.path.split(os.path.realpath(HDR_input_files[0]))[0]
 
     the_script = """#!/usr/bin/env bash
@@ -75,8 +74,7 @@ cd %s
         the_script += "\nalign_image_stack -xyzdivv -a HDR_AIS %s" % ' '.join([shlex.quote(f) for f in HDR_input_files])
 
     the_script += "\nenfuse --output=%s HDR_AIS*tif" % (shlex.quote(output_file))
-    the_script += "\nconvert %s -quality 98 %s" % (shlex.quote(output_file), shlex.quote(os.path.splitext(
-            output_file)[0] + ".JPG"))
+    the_script += "\nconvert %s -quality 98 %s" % (shlex.quote(output_file), shlex.quote(os.path.splitext(output_file)[0] + ".JPG"))
     the_script += "\nrm %s\n\n" % shlex.quote(output_file)
 
     if metadata_source_file:

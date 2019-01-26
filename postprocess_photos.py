@@ -5,10 +5,10 @@ The postprocess_photos.py script performs the kind of postprocessing work that
 needs to happen when I move photos to my hard drive from one or more of my
 cameras. It processes an entire directory at a time; just invoke it by typing
 
-    ./postprocess_photos.py
+    ./postprocess_photos.py [PHOTO-DIRECTORY]
 
-while the directory that needs to be processed is the current working
-directory.
+either while the directory that needs to be processed is the current working
+directory, or specifying the directory to process at the end of the command.
 
 Currently, it performs the following tasks:
     1. Empties out the folder's .thumbnails directory if it has files, creates
@@ -21,7 +21,9 @@ Currently, it performs the following tasks:
        record of the mapping between old and new names in a file it calls
        file_names.csv.
     4. Auto-rotates all photos in the current directory by calling exiftran.
-    5. If any .SH files are found in the directory being processed, it assumes
+    5. If any raw files are found in the directory, it creates autotonemapped
+       HDR files from those raw files.
+    6. If any .SH files are found in the directory being processed, it assumes
        they are Bash scripts that call enfuse, possibly preceded by a call to
        align_image_stack (and are the product of automatic exposure bracketing
        by Magic Lantern, which is the only way that .SH files ever wind up on
@@ -48,27 +50,35 @@ Currently, it performs the following tasks:
 That's it. That's all it does. Current limitations include:
     * It doesn't do anything with non-JPEG images, except for videos and known raw
       images. It does nothing with PNG, TIFF, BMP, etc.
-    * It only operates on the current working directory.
     * It doesn't process any Magic Lantern scripts other than the enfuse/
       enfuse+align scripts. (ARE there others?)
     * It doesn't add the -d or -i (or -x, -y, or -z; or -C) options to the
       align line in rewritten Magic Lantern scripts, but maybe it should.
 
-Currently, it depends (directly itself, or indirectly by virtue of the scripts
-it writes) on these external programs:
+Currently, this suite of scripts depends (directly itself, or indirectly by
+virtue of the scripts they write) on these external programs:
 
     program             Debian package name     My version
     -------             -------------------     ----------
     align_image_stack   enfuse                  4.1.3+dfsg-2
+    enfuse                  "                       "
     convert             imagemagick             8:6.8.9.9-5
-    enfuse              enfuse                  4.1.3+dfsg-2
+    mogrify                 "                       "
+    dcraw               dcraw                   9.21-0.2
     exiftool            libimage-exiftool-perl  9.74-1
     exiftran            exiftran                2.09-1+b1
     ffmpeg              ffmpeg                  7:2.8.15
+    luminance-hdr       luminance-hdr           2.4.0-8
 
 Other versions will often, though not necessarily always, work just fine.
 YMMV. Remember that Ubuntu is not Debian and package names may be different.
-Synaptic is your friend if you're having trouble finding things.
+Synaptic is your friend if you're having trouble finding things. If you're
+a Debian (or Ubuntu, or Linux Mint ...) user who's lost and not sure where to
+start, try
+
+    sudo apt install enfuse imagemagick dcraw libimage-exiftool-perl exiftran ffmpeg luminance-hdr
+
+in a terminal and see if that helps.
 
 This script can also be imported as a Python module (it requires Python 3); try
 typing
@@ -93,12 +103,15 @@ import exifread                         # https://github.com/ianare/exif-py; sud
 from PIL import Image                   # [sudo] pip[3] install Pillow; https://python-pillow.org/
 
 import create_HDR_script as hdr         # https://github.com/patrick-brian-mooney/photo-processing/
-import HDR_from_raw as hfr              # https://github.com/patrick-brian-mooney/photo-processing/
-import file_utils as fu                 # https://github.com/patrick-brian-mooney/photo-processing/
+import HDR_from_raw as hfr
+import file_utils as fu
+import config
+
+config.startup()                        # Check that the system meets minimum requirements; find necessary executables
 
 
 debugging = True
-force_debug = False
+force_debug = True                      # Used if setup in IDE needed.
 
 raw_must_be_paired_with_JPEG = False    # If True, delete raw photos that don't have a pre-existing JPEG counterpart
 delete_small_raws = True                # Delete raw photos that are paired with small JPEGs.
@@ -182,7 +195,7 @@ def adjust_timestamps(file_list, yr=0, mo=0, days=0, hr=0, m=0, sec=0, rename=Tr
             os.chdir(os.path.dirname(file_list[0]))
         sign = "-" if [i for i in [yr, mo, days, hr, m, sec] if i < 0] else "+"
         f_date = "%s:%s:%s %s:%s:%s" % (abs(yr), abs(mo), abs(days), abs(hr), abs(m), abs(sec))
-        subprocess.call('exiftool -m "-AllDates%s=%s" "-FileModifyDate%s=%s" -overwrite_original %s' % (sign, f_date, sign, f_date, ' '.join([shlex.quote(f) for f in file_list])), shell=True)
+        subprocess.call([config.executable_location('exiftool'), '-m', '-AllDates%s=%s' % (sign, f_date), '-FileModifyDate%s=%s' % (sign, f_date), '-overwrite_original'] + file_list)
         if rename:
             mappings = fu.FilenameMapper()
             mappings.read_mappings('file_names.csv')
@@ -204,16 +217,21 @@ def set_timestamps(file_list, yr, mo, days, hr, m, sec=0):
     workflow tends to use this only on files entirely without EXIF data in the first
     place: scanned negatives, primarily. In any case, these files that come without
     ANY date already embedded tend to be named according to criteria other than
-    embedded datetimes: negative numbers, primarily.
+    embedded datetimes: primarily, these numbers are based on film roll ID# and the
+    sequential number of the negative on the rule..
 
     Assumes all files in FILE_LIST are in the same directory.
     """
+    assert isinstance(file_list, (list, tuple)), "ERROR: set_timestamps() was not passed a LIST OF FILES as FILE_LIST!"
+    for f in file_list:
+        assert os.path.dirname(f) == os.path.dirname(file_list[0]), "ERROR: all files passed to set_timestamps() must be in the same directory!"
+
     old_dir = os.getcwd()
     try:
         if os.path.dirname(file_list[0]):
             os.chdir(os.path.dirname(file_list[0]))
         f_date = "%s:%s:%s %s:%s:%s" % (yr, mo, days, hr, m, sec)
-        subprocess.call('exiftool -m "-AllDates=%s" "-FileModifyDate=%s" -overwrite_original %s' % (f_date, f_date, ' '.join([shlex.quote(f) for f in file_list])), shell=True)
+        subprocess.call([config.executable_location('exiftool'), '-m', '-AllDates=%s' % f_date, '-FileModifyDate=%s' % f_date, '-overwrite_original'] + file_list)
     finally:
         os.chdir(old_dir)
 
@@ -274,7 +292,7 @@ def empty_thumbnails():
         os.mkdir('.thumbnails')
         os.chmod('.thumbnails', 0o555)
     except:
-        print('\n') # If an error occurs, end the status line that's waiting to be ended
+        print('\n')     # If an error occurs, end the status line that's waiting to be ended ...
         raise           #  then let the error propagate.
     print(' ... done.\n\n')
 
@@ -408,8 +426,8 @@ def rotate_photos():
             all_photos, rest = all_photos[:128], all_photos[128:]
         else:
             rest = None
-        print()             # Give some indication of when we've ended a block of 128 photos.
-        subprocess.call('exiftran -aigp %s' % ' '.join([shlex.quote(f) for f in all_photos]), shell=True)
+        print()             # Give a comparatively subtle indication of when we've ended a block of 128 photos.
+        subprocess.call([config.executable_location('exiftran'), '-aigp'] + all_photos)
         all_photos = rest
 
 
@@ -482,7 +500,7 @@ def run_shell_scripts():
     file_list = sorted([which_script for which_script in glob.glob("*SH") if os.access(which_script, os.X_OK)])
     for which_script in file_list:
         print('\n\n    Running script: %s' % which_script)
-        subprocess.call('./' + shlex.quote(which_script))
+        subprocess.call([os.path.abspath(which_script)])
         os.system('chmod a-x -R %s' % shlex.quote(which_script))
     print("\n\n ... done running scripts.")
 
@@ -499,6 +517,8 @@ def create_HDRs_from_raws():
         print("\nCreating HDR JPEGs (and intermediate scripts) from %d raw files ...\n\n" % len(the_raws))
         for which_raw in the_raws:
             hfr.HDR_tonemap_from_raw(which_raw)
+    else:
+        print("\nNo raw photos detected, moving on ...")
 
 
 def hang_around():
@@ -528,23 +548,28 @@ def hang_around():
 if __name__ == "__main__":
 
     if force_debug:
-        # Whatever statements actually need to be run in an IDE go here.
-        os.chdir('/home/patrick/Photos/2018-12-17')
-        # sys.exit()
+        # Whatever statements need are needed to set up an IDE run go here.
+        os.chdir('/home/patrick/Photos/copy/2019-01-22')
 
-    if len(sys.argv) > 1:
+    if len(sys.argv) == 1:
+        if input('\nDo you want to postprocess the directory %s?  ' % os.path.abspath(os.getcwd()))[0].lower() != 'y':
+            print("Remember: you can specify the directory to be processed onthe command line.\nQuitting...")
+            sys.exit(1)
+    elif len(sys.argv) == 2:
         if sys.argv[1] == '--help' or sys.argv[1] == '-h':
             print_usage()
             sys.exit(0)
         elif sys.argv[1] == '--pythonhelp':
             python_help()
             sys.exit(0)
-        else:               # There should be no command-line arguments other than those we just processed.
-            print_usage()
-            sys.exit(1)
-
-    if input('\nDo you want to postprocess the directory %s?  ' % os.getcwd())[0].lower() != 'y':
-        print('\n\nREMEMBER: this script only works on the current working directory.\n')
+        else:
+            if os.path.isdir(sys.argv[1]):
+                os.chdir(sys.argv[1])
+            else:
+                print("ERROR! %s is not a directory." % sys.argv[1])
+                sys.exit(1)
+    else:               # There should be no command-line arguments other than those we just processed.
+        print_usage()
         sys.exit(1)
 
     try:        # Read existing filename mappings if there are any.

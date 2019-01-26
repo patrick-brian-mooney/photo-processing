@@ -14,7 +14,7 @@ are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
 """
 
-import os, glob, subprocess
+import os, glob
 
 import postprocess_photos as pp     # https://github.com/patrick-brian-mooney/photo-processing/blob/master/postprocess_photos.py
 import create_HDR_script as cHs     # https://github.com/patrick-brian-mooney/photo-processing/blob/master/create_HDR_script.py

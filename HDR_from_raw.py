@@ -22,11 +22,14 @@ import statistics                   # And therefore we require Python 3.4.
 
 from PIL import Image               # [sudo] pip[3] install Pillow; https://python-pillow.org/
 
-import create_HDR_script as chs
-import file_utils as fu
-
 import patrick_logger               # https://github.com/patrick-brian-mooney/python-personal-library/blob/master/patrick_logger.py
 from patrick_logger import log_it
+
+import create_HDR_script as chs
+import file_utils as fu
+import config
+
+config.startup()                        # Check that the system meets minimum requirements; find necessary executables
 
 
 patrick_logger.verbosity_level = 3
@@ -34,8 +37,6 @@ patrick_logger.verbosity_level = 3
 shifts = range(-5, 6)       # Range of Ev adjustments. This is probably the maximum plausible range from a single 12- or 14-bit raw file.
 clipping_threshold = 144    # If >= half the image's data is within this distance of the relevant edge, we'll consider it clipped.
 
-
-avoid_darkness_adjustment = False       # For most circumstances (i.e., when using my main camera, which this procedure currently assumes), we want to perform darkness adjustment. However, sometimes it's beneficial to surpress this (e.g., when dealing with scanned negatives). 
 
 force_debug = False
 
@@ -58,14 +59,10 @@ def produce_shifted_tonemap(rawfile, base_ISO, base_Ev, Ev_shift):
     """
     log_it("INFO: creating, tagging, and testing a file for Ev_shift %d" % Ev_shift, 2)
     outfile = 'HDR_AIS_' + os.path.splitext(rawfile)[0] + ("+" if Ev_shift >= 0 else "") + str(Ev_shift) + ".tif"
-    command = "dcraw -T -c -v -w -W"
-    if not avoid_darkness_adjustment:               # unless we explicitly want to perform NO darkness-level pre-processing ...
-        if os.path.isfile(fu.darkframe_location):   # If there is a darkframe, subtract it from the raw image
-            command += " -K %s" % shlex.quote(fu.darkframe_location)
-        else:                                       # Otherwise, just adjust the darkness level of the output
-            command += "-k %s" % fu.measured_darkness_level
-    command += " -b %s %s > %s" % (2 ** Ev_shift, shlex.quote(rawfile), shlex.quote(outfile))
-    subprocess.call(command, shell=True)
+    command = [config.executable_location('dcraw'), '-T', '-c', '-v', '-w', '-W', '-b', str(2 ** Ev_shift)]
+    command += [rawfile]
+    with open(outfile, mode="w") as the_output:
+        subprocess.call(command, stdout=the_output)
     return outfile
 
 
@@ -126,8 +123,8 @@ def create_HDR_script(rawfile):
             os.chdir(os.path.dirname(rawfile))
             rawfile = tail
         selected_files, shift_mappings = {}.copy(), {}.copy()
-        original_ISO = fu.get_value_from_any_tag(fu.find_alt_version(rawfile, fu.jpeg_extensions), ['ISO', 'AutoISO', 'BaseISO'])
-        original_Ev = fu.get_value_from_any_tag(fu.find_alt_version(rawfile, fu.jpeg_extensions), ['MeasuredEV', 'MeasuredEV2'])
+        original_ISO = fu.get_value_from_any_tag(fu.find_alt_version(rawfile, fu.jpeg_extensions), ['ISO', 'AutoISO', 'BaseISO', 'EXIF ISOSpeedRatings'])
+        original_Ev = fu.get_value_from_any_tag(fu.find_alt_version(rawfile, fu.jpeg_extensions), ['MeasuredEV', 'MeasuredEV2']) or 9         # If we can't determine it, pick a medium dummy number
         for shift_factor in shifts:                 # Create individual ISO-shifted files
             outfile = produce_shifted_tonemap(rawfile, original_ISO, original_Ev, shift_factor)
             shift_mappings[shift_factor] = outfile
@@ -186,7 +183,8 @@ def create_HDR_script(rawfile):
 def HDR_tonemap_from_raw(rawfile):
     """Write an HDR-creation script for RAWFILE, then run it."""
     raw_script = create_HDR_script(rawfile)
-    subprocess.call(shlex.quote(os.path.abspath(raw_script)), shell=True)
+    subprocess.call([os.path.abspath(raw_script)])
+    os.system('chmod a-x -R %s' % shlex.quote(raw_script))
 
 
 
