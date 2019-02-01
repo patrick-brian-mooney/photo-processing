@@ -3,15 +3,11 @@
 """Takes a raw image file and creates a tonemapped HDR from it. Requires dcraw
 and the panotools suite.
 
-Usage:
-
-    ./HDR_from_raw FILE [FILE2] [FILE3] [...]
-
 It can also be imported as a module by Python 3.X programs.
 
 This program is part of Patrick Mooney's photo postprocessing scripts; the
 complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
-All programs in that collection are copyright 2015-2018 by Patrick Mooney; they
+All programs in that collection are copyright 2015-2019 by Patrick Mooney; they
 are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
 """

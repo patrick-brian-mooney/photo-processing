@@ -16,12 +16,14 @@ option) any later version. See the file LICENSE.md for details.
 
 import os, platform, shlex, subprocess, sys
 
+import PIL  # I'd rather have this fail here, during setup checking, then
+
 
 # The list of executable programs and their locations. Anything whose value is set to None will be searched for in
 # the user's $PATH. If the executable is not in the $PATH, it can be set manually here. Note that some paths set here
 # are not actually called by any of the photo-processing scripts directly: instead, they are called by bash scripts
 # written by the photo-postprocessing scripts. They go here both for completeness's sake and because this forces a
-# check for their existince, which means that the relevant "program not installed" error is thrown early and
+# check for their existence, which means that the relevant "program not installed" error is thrown early and
 # intelligibly by this script, instead of cryptically when the user tries to (implicitly or explicitly) run the bash
 # script. Note that other paths that need to be accessible can be set here manually or procedurally, too.
 executables = {
@@ -59,12 +61,15 @@ def populate_executables():
 
 def startup():
     """Handle basic startup tasks: after making sure we're not running under Windows,
-    populate the list of external programs.
+    populate the list of external programs. Doesn't do anything if the list is
+    already initialized.
+    * Assumes a terminal at least 80 chars wide.
     """
-    if "windows" in platform.system().lower():
-        print("ERROR: Patrick Mooney's photo-processing scripts do not currently run under Windows.")
-        sys.exit(1)
-    populate_executables()
+    if None in executables.values():
+        if "windows" in platform.system().lower():
+            print("ERROR: Patrick Mooney's photo-processing scripts do not run under Windows. With\nthe proper external programs and a little attention, though, they should run\nunder most Unix-like OSes.")
+            sys.exit(1)
+        populate_executables()
 
 
 if __name__ == "__main__":

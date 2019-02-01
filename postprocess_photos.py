@@ -3,14 +3,19 @@
 """
 The postprocess_photos.py script performs the kind of postprocessing work that
 needs to happen when I move photos to my hard drive from one or more of my
-cameras. It processes an entire directory at a time; just invoke it by typing
-
-    ./postprocess_photos.py [PHOTO-DIRECTORY]
-
-either while the directory that needs to be processed is the current working
+cameras. It processes an entire directory at a time; just invoke it either
+while the directory that needs to be processed is the current working
 directory, or specifying the directory to process at the end of the command.
 
-Currently, it performs the following tasks:
+This script requires Python 3.5+ and that a series of external programs be
+installed; read on for details. It does not currently, and probably never will,
+run under any version of Windows, but it should run under most or all Unix-like
+operating systems, including Linux and macOS, with minimal adjustment needed.
+Comments, suggestions, bug reports, code contributions, and other feedback are
+welcome, and should be submitted through the project's GitHub page.
+
+I usually invoke the script after offloading photos from my camera(s)' memory
+cards. Currently, it performs these tasks on a directory full of photos:
     1. Empties out the folder's .thumbnails directory if it has files, creates
        it if it doesn't exist, and locks it down by making it non-writable.
     2. Auto-renames all photos in the current directory, then writes a file,
@@ -21,8 +26,8 @@ Currently, it performs the following tasks:
        record of the mapping between old and new names in a file it calls
        file_names.csv.
     4. Auto-rotates all photos in the current directory by calling exiftran.
-    5. If any raw files are found in the directory, it creates autotonemapped
-       HDR files from those raw files.
+    5. If any raw files are found in the directory, it automagically creates
+       autotonemapped HDR files from those raw files.
     6. If any .SH files are found in the directory being processed, it assumes
        they are Bash scripts that call enfuse, possibly preceded by a call to
        align_image_stack (and are the product of automatic exposure bracketing
@@ -48,58 +53,17 @@ Currently, it performs the following tasks:
              separate HDR_components folder.
 
 That's it. That's all it does. Current limitations include:
-    * It doesn't do anything with non-JPEG images, except for videos and known raw
-      images. It does nothing with PNG, TIFF, BMP, etc.
+    * It doesn't do anything with non-JPEG images, except for known raw images
+      and (some, known) videos. It does nothing with PNG, TIFF, BMP, etc.
     * It doesn't process any Magic Lantern scripts other than the enfuse/
       enfuse+align scripts. (ARE there others?)
     * It doesn't add the -d or -i (or -x, -y, or -z; or -C) options to the
       align line in rewritten Magic Lantern scripts, but maybe it should.
-
-Currently, this suite of scripts depends (directly itself, or indirectly by
-virtue of the scripts they write) on these external programs:
-
-    program             Debian package name     My version
-    -------             -------------------     ----------
-    align_image_stack   enfuse                  4.1.3+dfsg-2
-    enfuse                  "                       "
-    convert             imagemagick             8:6.8.9.9-5
-    mogrify                 "                       "
-    dcraw               dcraw                   9.21-0.2
-    exiftool            libimage-exiftool-perl  9.74-1
-    exiftran            exiftran                2.09-1+b1
-    ffmpeg              ffmpeg                  7:2.8.15
-    luminance-hdr       luminance-hdr           2.4.0-8
-
-Other versions will often, though not necessarily always, work just fine.
-YMMV. Remember that Ubuntu is not Debian and package names may be different.
-Synaptic is your friend if you're having trouble finding things. If you're
-a Debian (or Ubuntu, or Linux Mint ...) user who's lost and not sure where to
-start, try
-
-    sudo apt install enfuse imagemagick dcraw libimage-exiftool-perl exiftran ffmpeg luminance-hdr
-
-in a terminal and see if that helps.
-
-This script can also be imported as a Python module (it requires Python 3); try
-typing
-
-    ./postprocess_photos.py --pythonhelp
-
-in a terminal for more.
-
-This program comes with ABSOLUTELY NO WARRANTY. Use at your own risk.
-
-This program is part of Patrick Mooney's photo postprocessing scripts; the
-complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
-All programs in that collection are copyright 2015-2018 by Patrick Mooney; they
-are free software released under the GNU GPL, either version 3 or (at your
-option) any later version. See the file LICENSE.md for details.
 """
 
 
-import csv, datetime, fnmatch, glob, os, re, shlex, shutil, subprocess, sys, time
+import argparse, datetime, fnmatch, glob, os, pprint, re, shlex, shutil, subprocess, sys, time
 
-import exifread                         # https://github.com/ianare/exif-py; sudo pip3 install exifread
 from PIL import Image                   # [sudo] pip[3] install Pillow; https://python-pillow.org/
 
 import create_HDR_script as hdr         # https://github.com/patrick-brian-mooney/photo-processing/
@@ -111,7 +75,7 @@ config.startup()                        # Check that the system meets minimum re
 
 
 debugging = True
-force_debug = True                      # Used if setup in IDE needed.
+force_debug = True                     # Used if setup in IDE needed.
 
 raw_must_be_paired_with_JPEG = False    # If True, delete raw photos that don't have a pre-existing JPEG counterpart
 delete_small_raws = True                # Delete raw photos that are paired with small JPEGs.
@@ -549,41 +513,100 @@ if __name__ == "__main__":
 
     if force_debug:
         # Whatever statements need are needed to set up an IDE run go here.
-        os.chdir('/home/patrick/Photos/copy/2019-01-22')
+        os.chdir('/home/patrick/Photos/2019-01-31')
 
-    if len(sys.argv) == 1:
-        if input('\nDo you want to postprocess the directory %s?  ' % os.path.abspath(os.getcwd()))[0].lower() != 'y':
-            print("Remember: you can specify the directory to be processed onthe command line.\nQuitting...")
-            sys.exit(1)
-    elif len(sys.argv) == 2:
-        if sys.argv[1] == '--help' or sys.argv[1] == '-h':
-            print_usage()
-            sys.exit(0)
-        elif sys.argv[1] == '--pythonhelp':
-            python_help()
-            sys.exit(0)
-        else:
-            if os.path.isdir(sys.argv[1]):
-                os.chdir(sys.argv[1])
-            else:
-                print("ERROR! %s is not a directory." % sys.argv[1])
-                sys.exit(1)
-    else:               # There should be no command-line arguments other than those we just processed.
-        print_usage()
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     epilog="""Currently, this suite of scripts depends (directly itself, or indirectly by
+virtue of the scripts they write) on these external programs:
+
+    program             Debian package name     My version
+    -------             -------------------     ----------
+    align_image_stack   enfuse                  4.1.3+dfsg-2
+    enfuse                  "                       "
+    convert             imagemagick             8:6.8.9.9-5
+    mogrify                 "                       "
+    dcraw               dcraw                   9.21-0.2
+    exiftool            libimage-exiftool-perl  9.74-1
+    exiftran            exiftran                2.09-1+b1
+    ffmpeg              ffmpeg                  7:2.8.15
+    luminance-hdr       luminance-hdr           2.4.0-8
+
+Other versions will often, though not necessarily always, work just fine.
+YMMV. Remember that Ubuntu is not Debian and package names may be different.
+Synaptic is your friend if you're having trouble finding things. If you're
+a Debian (or Ubuntu, or Linux Mint ...) user who's lost and not sure where to
+start, try
+
+    sudo apt install enfuse imagemagick dcraw libimage-exiftool-perl exiftran ffmpeg luminance-hdr
+
+in a terminal and see if that helps.
+
+This script can also be imported as a Python module (it requires Python 3); try
+typing
+
+    ./postprocess_photos.py --pythonhelp
+
+in a terminal for more.
+
+This program comes with ABSOLUTELY NO WARRANTY. Use at your own risk.
+
+This program is part of Patrick Mooney's photo postprocessing scripts; the
+complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
+All programs in that collection are copyright 2015-2019 by Patrick Mooney; they
+are free software released under the GNU GPL, either version 3 or (at your
+option) any later version. See the file LICENSE.md for details.
+""",)
+    parser.add_argument('-e', '--empty', '--empty-thumbnails', '--empty_thumbnails', action='store_true',
+                        help="force the directory's .thumbnails cache to be empty and non-writeable")
+    parser.add_argument('-d', '--delete', '--delete-spurious-raw-files', '--delete_spurious_raw_files',
+                        action='store_true', help="delete raw files not associated with a JPEG")
+    parser.add_argument('-r', '--rename', '--rename-photos', '--rename_photos', action='store_true',
+                        help="rename all photos based on their EXIF date and time")
+    parser.add_argument('-c', '--create', '--create-HDRs-from-raws', '--create_HDRs_from_raws', action='store_true',
+                        help="create HDR scripts for all raw files, then run those scripts")
+    parser.add_argument('-t', '--rotate', '--rotate-photos', '--rotate_photos', action='store_true',
+                        help="rotate all photos in the directory to their default EXIF orientation")
+    parser.add_argument('-p', '--process', '--process-shell-scripts', '--process_shell_scripts', action='store_true',
+                        help="rewrite Magic Lantern scripts in the directory")
+    parser.add_argument('-u', '--run', '--run-shell-scripts', '--run_shell_scripts', action='store_true',
+                        help="run all executable shell scripts in the directory")
+    parser.add_argument('-y', '--python-help', '--python_help', action='store_true',
+                        help="run all executable shell scripts in the directory")
+    parser.add_argument(dest="directory", nargs='?', default=os.getcwd(),
+                        help = "image directory to process")
+    args = vars(parser.parse_args())            # Now we have a dictionary of command-line arguments
+
+    if args['python_help']:
+        python_help()
+        sys.exit(0)
+
+    # Massage the list of actions to perform
+    actions = ['create', 'delete', 'empty', 'process', 'rename', 'rotate', 'run']
+    if not True in {a: args[a] for a in actions}.values():      # If NO actions are specified, do EVERYTHING.
+        for a in actions:
+            args[a] = True
+
+    if not os.path.isdir(args['directory']):
+        print("ERROR! %s is not a directory." % args['directory'])
+    elif args['directory'] != os.getcwd():
+        os.chdir(args['directory'])
 
     try:        # Read existing filename mappings if there are any.
         file_name_mappings.read_mappings('file_names.csv')
     except OSError:
         pass
-    empty_thumbnails()
-    delete_spurious_raw_files()
-    rename_photos()
-    create_HDRs_from_raws()
-    rotate_photos()
-    process_shell_scripts()
-    run_shell_scripts()
+
+    # OK, let's do the things that we actually need to do.
+    if args['empty']: empty_thumbnails()
+    if args['delete']: delete_spurious_raw_files()
+    if args['rename']: rename_photos()
+    if args['create']: create_HDRs_from_raws()
+    if args['rotate']: rotate_photos()
+    if args['process']: process_shell_scripts()
+    if args['run']: run_shell_scripts()
+
     if input("Want me to hang around and run scripts that show up? (Say NO if unsure.) --|  ").strip().lower()[0] == "y":
         print('\n\nOK, hit ctrl-C when finished.\n')
         hang_around()
+
    # We're done!
