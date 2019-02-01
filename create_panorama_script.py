@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """This quick hack writes a bash script that uses the PTTools to stitch a
 panorama from all photos in the current directory. It assumes that all of the
-photos are JPGs in the current directory, and that all of the JPGs in the
+photos are JPEGs in the current directory, and that all of the JPEGs in the
 current directory are photos for the panorama. The output scripts written by
 this script also make a lot of other assumptions; basically, it automates my
 own most common panorama stitching process. It leaves behind a .pto file that
@@ -44,7 +44,7 @@ This program comes with ABSOLUTELY NO WARRANTY. Use at your own risk.
 
 This program is part of Patrick Mooney's photo postprocessing scripts; the
 complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
-All programs in that collection are copyright 2015-2018 by Patrick Mooney; they
+All programs in that collection are copyright 2015-2019 by Patrick Mooney; they
 are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
 """

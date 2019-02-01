@@ -59,6 +59,14 @@ That's it. That's all it does. Current limitations include:
       enfuse+align scripts. (ARE there others?)
     * It doesn't add the -d or -i (or -x, -y, or -z; or -C) options to the
       align line in rewritten Magic Lantern scripts, but maybe it should.
+
+If the script is run from the command line without any parameters, it runs
+through all of the above steps on all relevant files in the current directory.
+If it is run with no action flags but specifying the name of a directory, it
+runs through all of the above steps on all relevant files in THAT directory.
+If any action flags are specified, it runs through only those actions that are
+specified on the command line; this might be helpful if a previous run was
+interrupted, for instance.
 """
 
 
@@ -75,7 +83,7 @@ config.startup()                        # Check that the system meets minimum re
 
 
 debugging = True
-force_debug = True                     # Used if setup in IDE needed.
+force_debug = False                     # Used if setup in IDE needed.
 
 raw_must_be_paired_with_JPEG = False    # If True, delete raw photos that don't have a pre-existing JPEG counterpart
 delete_small_raws = True                # Delete raw photos that are paired with small JPEGs.
@@ -411,6 +419,8 @@ def process_shell_scripts():
     This routine REQUIRES that a set of filename mappings have already been read
     into memory; you can accomplish this by calling read_filename_mappings() to read
     an existing file_names.csv file into memory.
+
+    #FIXME: this docstring needs a rewrite.
     """
     print('\nRewriting enfuse HDR scripts ... ')
     try:
@@ -471,11 +481,12 @@ def run_shell_scripts():
 
 def create_HDRs_from_raws():
     """For every raw file, create a tonemap from it, creating an intermediate
-    script along the way, which it runs in order to create the tonemap.
+    Bash script along the way, which it runs in order to create the tonemap.
 
     This routine DOES NOT REQUIRE that filename mappings have been read into
     memory; it just operates on all of the identifiable raw photos in the current
-    directory."""
+    directory.
+    """
     the_raws = sorted(fu.list_of_raws())
     if the_raws:
         print("\nCreating HDR JPEGs (and intermediate scripts) from %d raw files ...\n\n" % len(the_raws))
@@ -517,7 +528,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
                                      epilog="""Currently, this suite of scripts depends (directly itself, or indirectly by
-virtue of the scripts they write) on these external programs:
+wayof the scripts they write) on these external programs:
 
     program             Debian package name     My version
     -------             -------------------     ----------
@@ -537,12 +548,13 @@ Synaptic is your friend if you're having trouble finding things. If you're
 a Debian (or Ubuntu, or Linux Mint ...) user who's lost and not sure where to
 start, try
 
-    sudo apt install enfuse imagemagick dcraw libimage-exiftool-perl exiftran ffmpeg luminance-hdr
+    sudo apt install enfuse imagemagick dcraw libimage-exiftool-perl exiftran \
+        ffmpeg luminance-hdr
 
 in a terminal and see if that helps.
 
-This script can also be imported as a Python module (it requires Python 3); try
-typing
+This script can also be imported as a Python module (it requires Python 3.5+);
+try typing
 
     ./postprocess_photos.py --pythonhelp
 

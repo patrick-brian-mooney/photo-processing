@@ -16,7 +16,7 @@ The latest version of these scripts can always be found at
 """
 
 
-import os, shlex, subprocess, sys
+import os, subprocess, sys
 from tkinter import *
 
 import patrick_logger               # https://github.com/patrick-brian-mooney/python-personal-library/blob/master/patrick_logger.py

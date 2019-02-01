@@ -21,7 +21,7 @@ option) any later version. See the file LICENSE.md for details.
 
 import glob, os, subprocess, time
 
-import config
+import config               # https://github.com/patrick-brian-mooney/photo-processing/
 
 
 def main():

@@ -14,6 +14,8 @@ import csv, datetime, glob, os, shlex, subprocess, sys
 
 import exifread                     # [sudo] pip[3] install exifread; or, https://pypi.python.org/pypi/ExifRead
 
+import config
+
 
 raw_photo_extensions = ('CR2', 'cr2', 'DNG', 'dng', 'RAF', 'raf', 'DCR', 'dcr', 'NEF', 'nef')
 jpeg_extensions = ('jpg', 'JPG', 'jpeg', 'JPEG', 'jpe', 'JPE')
@@ -123,7 +125,8 @@ def list_of_raws():
     return [f for f in sorted(list(set(all_raws)))]
 
 
-"""The following class maintains a list of mappings:
+"""
+The following class maintains a list of mappings:
     "original file name" -> "current file name".
 
 Note that there is no claim made to maintain intermediate names the file may

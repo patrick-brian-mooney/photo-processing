@@ -9,7 +9,7 @@ This program comes with ABSOLUTELY NO WARRANTY. Use at your own risk.
 
 This program is part of Patrick Mooney's photo postprocessing scripts; the
 complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
-All programs in that collection are copyright 2015-2018 by Patrick Mooney; they
+All programs in that collection are copyright 2015-2019 by Patrick Mooney; they
 are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
 """

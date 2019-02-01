@@ -14,7 +14,7 @@ option) any later version. See the file LICENSE.md for details.
 
 
 import os, shlex, subprocess, sys, time
-import statistics                   # And therefore we require Python 3.4.
+import statistics                   # And therefore we require Python 3.4+.
 
 from PIL import Image               # [sudo] pip[3] install Pillow; https://python-pillow.org/
 
