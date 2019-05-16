@@ -31,7 +31,7 @@ config.startup()                        # Check that the system meets minimum re
 patrick_logger.verbosity_level = 3
 
 shifts = range(-5, 6)       # Range of Ev adjustments. This is probably the maximum plausible range from a single 12- or 14-bit raw file.
-clipping_threshold = 144    # If >= half the image's data is within this distance of the relevant edge, we'll consider it clipped.
+clipping_threshold = 32     # If >= half the image's data is within this distance of the relevant edge, we'll consider it clipped.
 
 
 force_debug = False
@@ -109,7 +109,8 @@ def no_lower_quarter_data(histo):
 
 def create_HDR_script(rawfile):
     """Create a series of EV-shifted versions of RAWFILE, then produce a script that
-    will tonemap them. Returns the filename of the script.
+    will tonemap them. RAWFILE is the pathname to the raw file. Returns the filename
+    of the script that it created.
     """
     log_it("INFO: creating an HDR tonemapping script for raw file '%s'" % rawfile)
     olddir = os.getcwd()
@@ -124,7 +125,6 @@ def create_HDR_script(rawfile):
         for shift_factor in shifts:                 # Create individual ISO-shifted files
             outfile = produce_shifted_tonemap(rawfile, original_ISO, original_Ev, shift_factor)
             shift_mappings[shift_factor] = outfile
-
         # OK, let's trim the list to actually useful images
         # First, start at the top and move downwards, seeking the darkest useful image.
         current_shift, found_beginning, found_end = max(shifts), False, False
@@ -186,11 +186,13 @@ def HDR_tonemap_from_raw(rawfile):
 
 if __name__ == "__main__":
     if force_debug:
-        sys.argv[1:] = ['/home/patrick/Photos/2018-12-17/2018-12-17_15_01_53_1.cr2', '/home/patrick/Photos/2018-12-17/2018-12-16_20_29_10_1.cr2']
+        sys.argv[1:] = ['/home/patrick/Photos/2019-01-22/[2018-12-30] Afternoon trip to Georgetown/2018-12-30_14_37_16_1.cr2',
+                        '/home/patrick/Photos/2019-01-22/[2018-12-30] Afternoon trip to Georgetown/2018-12-30_14_37_24_2.cr2',
+                        '/home/patrick/Photos/2019-01-22/[2018-12-30] Afternoon trip to Georgetown/2018-12-30_14_41_24_1.cr2']
     if len(sys.argv) == 1 or sys.argv[1] in ['--help', '-h']:
         print(__doc__)
         sys.exit(0)
-    for whichfile in sys.argv[1:] :
+    for whichfile in sys.argv[1:]:
         if whichfile:
             print("Processing %s ..." % whichfile)
             time.sleep(0.5)

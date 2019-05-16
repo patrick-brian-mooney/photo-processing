@@ -25,4 +25,4 @@ if len(the_files) > 0:
     cHs.create_script_from_file_list(the_files)
     pp.run_shell_scripts()
 else:
-    raise IndexError('You must call HDR_from_all.py in a folder with at least one *jpg or *JPG file;\n   current working directory is %s' % os.getcwd())
+    raise IndexError('You must call HDR_from_all.py in a folder with at least one *jpg or *JPG file;\n   current working directory is: %s' % os.getcwd())

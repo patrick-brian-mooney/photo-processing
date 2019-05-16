@@ -4,7 +4,7 @@
 
 This program is part of Patrick Mooney's photo postprocessing scripts; the
 complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
-All programs in that collection are copyright 2015-2018 by Patrick Mooney; they
+All programs in that collection are copyright 2015-2019 by Patrick Mooney; they
 are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
 """
@@ -154,7 +154,7 @@ class FilenameMapper(object):
     def __repr__(self):
         """Return a printable representation."""
         ret = "< FilenameMapper object (mapping %d files) " % len(self.mapping)
-        ret += "(stored in '%s') " % self.filename if self.filename else "(not tied to a file) "
+        ret += "(stored in %s) " % shlex.quote(self.filename) if self.filename else "(not tied to a file) "
         ret += ">"
         return ret
 

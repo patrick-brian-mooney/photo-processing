@@ -16,7 +16,7 @@ option) any later version. See the file LICENSE.md for details.
 
 import os, platform, shlex, subprocess, sys
 
-import PIL  # I'd rather have this fail here, during setup checking, then
+import PIL  # I'd rather have this fail here, during setup checking, then in other places.
 
 
 # The list of executable programs and their locations. Anything whose value is set to None will be searched for in
