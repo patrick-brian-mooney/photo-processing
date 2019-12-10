@@ -22,7 +22,8 @@ jpeg_extensions = ('jpg', 'JPG', 'jpeg', 'JPEG', 'jpe', 'JPE')
 json_extensions = ('json', 'JSON')
 all_alternates = tuple(sorted(list(raw_photo_extensions + jpeg_extensions + json_extensions)))
 
-movie_extensions = ('MOV', 'mov', 'MP4', 'mp4', 'AVI', 'avi')
+movie_extensions = ('MOV', 'mov', 'MP4', 'mp4', 'AVI', 'avi',  'm4a', 'M4A', 'mkv', "MKV",)
+audio_extensions = ('wav', 'WAV', 'FLAC', 'flac', 'mp3', 'MP3', )
 
 darkframe_location = '/home/patrick/Photos/t7i_darkframe_for_dcraw.pgm'
 measured_darkness_level = "2047.901764"     # pamsumm -mean on the previously specified image.
@@ -81,20 +82,20 @@ def name_from_date(which_file):
     """
     with open(which_file, 'rb') as f:
         tags = exifread.process_file(f, details=False)    # details=False means don't parse thumbs or other slow data we don't need.
+    try:
+        dt = tags['EXIF DateTimeOriginal'].values
+    except KeyError:
         try:
-            dt = tags['EXIF DateTimeOriginal'].values
-        except KeyError:
-            try:
-                dt = tags['Image DateTime'].values
-            except KeyError:            # Sigh. Not all of my image-generating devices generate EXIF info in all circumstances.
-                if os.path.splitext(which_file)[1].strip().strip('.').strip() in movie_extensions:
-                    dt = movie_recorded_date(which_file)
-                else:
-                    dt = which_file         # At this point, just guess based on filename.
-        dt = ''.join([char for char in dt if char.isdigit()])
-        if len(dt) < 8:     # then we got filename gibberish, not a meaningful date.
-            dt = ''.join([char for char in datetime.datetime.fromtimestamp(os.path.getmtime(which_file)).isoformat() if char.isdigit()])
-        dt = dt.ljust(14)   # Even if it's just gibberish, make sure it's long enough gibberish
+            dt = tags['Image DateTime'].values
+        except KeyError:            # Sigh. Not all of my image-generating devices generate EXIF info in all circumstances.
+            if os.path.splitext(which_file)[1].strip().strip('.').strip() in movie_extensions:
+                dt = movie_recorded_date(which_file)
+            else:
+                dt = which_file         # At this point, just guess based on filename.
+    dt = ''.join([char for char in dt if char.isdigit()])
+    if len(dt) < 8:     # then we got filename gibberish, not a meaningful date.
+        dt = ''.join([char for char in datetime.datetime.fromtimestamp(os.path.getmtime(which_file)).isoformat() if char.isdigit()])
+    dt = dt.ljust(14)   # Even if it's just gibberish, make sure it's long enough gibberish
     return '%s-%s-%s_%s_%s_%s%s' % (dt[0:4], dt[4:6], dt[6:8], dt[8:10], dt[10:12], dt[12:14], os.path.splitext(which_file)[1].lower())
 
 
