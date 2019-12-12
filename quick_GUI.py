@@ -278,12 +278,12 @@ def resize_files(file_list, longest_side):
     sys.exit()
 
 
-force_debug = False
+force_debug = True
 
 if __name__ == "__main__":
     if force_debug:
         import glob
-        sys.argv[1:] = glob.glob('/home/patrick/Photos/2018-09-04/DSCN*.JPG')
+        sys.argv[1:] = glob.glob('/home/patrick/Photos/film/by roll number/1122/*.JPG') + glob.glob('/home/patrick/Photos/film/by roll number/1122/*.jpg')
     file_list = sys.argv[1:]
     log_it("OK, we're starting, and operating on %d files" % len(file_list), 2)
     assert len(file_list) > 0, "ERROR: You must specify at least one file on which to operate."
@@ -292,7 +292,7 @@ if __name__ == "__main__":
     if base_path:
         os.chdir(base_path)
     for i in file_list:
-        assert base_path == os.path.split(i)[0], "ERROR: file_list has files in different directories."
+        assert os.path.samefile(base_path, os.path.split(i)[0]), "ERROR: file_list has files in different directories."
     file_list = [os.path.basename(x) for x in file_list]
 
     Label(root, text='\nWhat would you like to do with these %d files?\n\n' % len(file_list)).pack(side=TOP, fill=X)
