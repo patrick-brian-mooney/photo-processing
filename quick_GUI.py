@@ -278,7 +278,7 @@ def resize_files(file_list, longest_side):
     sys.exit()
 
 
-force_debug = False
+force_debug = True
 
 if __name__ == "__main__":
     if force_debug:
