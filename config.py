@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 A series of declarations about external programs, used by other scripts in the
-photo processing collection.
+photo-processing scripts collection.
 
 This program comes with ABSOLUTELY NO WARRANTY. Use at your own risk.
 
@@ -11,6 +11,9 @@ complete set can be found at https://github.com/patrick-brian-mooney/photo-proce
 All programs in that collection are copyright 2015-2019 by Patrick Mooney; they
 are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
+
+The latest version of these scripts can always be found at
+    https://github.com/patrick-brian-mooney/photo-processing
 """
 
 

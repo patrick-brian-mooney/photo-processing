@@ -278,7 +278,7 @@ def resize_files(file_list, longest_side):
     sys.exit()
 
 
-force_debug = True
+force_debug = False
 
 if __name__ == "__main__":
     if force_debug:
@@ -286,6 +286,7 @@ if __name__ == "__main__":
         sys.argv[1:] = glob.glob('/home/patrick/Photos/film/by roll number/1122/*.JPG') + glob.glob('/home/patrick/Photos/film/by roll number/1122/*.jpg')
     file_list = sys.argv[1:]
     log_it("OK, we're starting, and operating on %d files" % len(file_list), 2)
+    log_it("Those files are: %s" % file_list, 4)
     assert len(file_list) > 0, "ERROR: You must specify at least one file on which to operate."
 
     base_path = os.path.split(file_list[0])[0]

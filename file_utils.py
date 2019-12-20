@@ -7,6 +7,9 @@ complete set can be found at https://github.com/patrick-brian-mooney/photo-proce
 All programs in that collection are copyright 2015-2019 by Patrick Mooney; they
 are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
+
+The latest version of these scripts can always be found at
+    https://github.com/patrick-brian-mooney/photo-processing
 """
 
 
@@ -19,8 +22,9 @@ import config
 
 raw_photo_extensions = ('CR2', 'cr2', 'DNG', 'dng', 'RAF', 'raf', 'DCR', 'dcr', 'NEF', 'nef')
 jpeg_extensions = ('jpg', 'JPG', 'jpeg', 'JPEG', 'jpe', 'JPE')
+other_image_extensions = ('png', 'PNG')
 json_extensions = ('json', 'JSON')
-all_alternates = tuple(sorted(list(raw_photo_extensions + jpeg_extensions + json_extensions)))
+all_alternates = tuple(sorted(list(raw_photo_extensions + jpeg_extensions + json_extensions + other_image_extensions)))
 
 movie_extensions = ('MOV', 'mov', 'MP4', 'mp4', 'AVI', 'avi',  'm4a', 'M4A', 'mkv', "MKV",)
 audio_extensions = ('wav', 'WAV', 'FLAC', 'flac', 'mp3', 'MP3', )
@@ -76,6 +80,64 @@ def movie_recorded_date(which_file):
         return ''.join([c for c in which_file if c.isdigit()])
 
 
+Apple_day_names = ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec')
+def parse_Apple_day(day_string):
+    """Takes an "Apple day", a string of the form 'Jun 26', and parses it into a
+    tuple: (numeric month, numeric day). Probably quite fragile. This is the
+    filename format for photos coming off of my iPhone. If this function cannot
+    parse the DAY_STRING string in the proper format, it returns None.
+
+    This is probably rather fragile, but happens to work for me right now.
+    """
+    for month_num, month_name in enumerate(Apple_day_names):
+        if month_name in day_string:
+            try:
+                return (1 + month_num, int(day_string[len(month_name) + day_string.index(month_name):].strip()))
+            except (ValueError, IndexError):
+                pass
+    return None
+
+
+def parse_Apple_filename(which_file):
+    """Parses "Apple filenames," as defined above, attempting to pick dates and times
+    out of strings with the format 'Photo Jun 26, 6 06 59 PM.jpg'. Returns a
+    numeric date string, like other date-detecting routines in here.
+    """
+    if 'photo' not in which_file.lower():           # Then it's not an Apple date
+        return None
+
+    # First massage, then split into date and time.
+    ret = which_file.lower().strip().lstrip('photo').strip()
+    ret = os.path.splitext(ret)[0]
+    day_string, time_string = ret.split(',')
+    day_string, time_string = day_string.strip(), time_string.strip()
+    try:
+        month_num, day_num = parse_Apple_day(day_string)
+    except TypeError:       # Can't expand the tuple? parse_Apple_day didn't work. This is probably not an Apple date.
+        return None
+
+    # OK, figure out what time the photo was taken, if possible.
+    stripped_time = ''.join([c for c in time_string if (c.isspace() or c.isdigit())])
+    hours, minutes, *seconds = stripped_time.split(' ')
+    if isinstance(seconds, (list, tuple)):  # If we wound up with a tuple instead of a string, rectify that.
+        seconds = seconds[0]
+    if 'am' in seconds:                                 # Drop any parenthetical sequence we may have picked up.
+        seconds = seconds[:seconds.index('am')]
+    elif 'pm' in seconds:
+        seconds = seconds[:seconds.index('pm')]
+    hours, minutes, seconds = int(hours), int(minutes), int(seconds)
+    if (('pm' in time_string.lower()) and (hours < 13)):
+        hours += 12
+
+    # Annoyingly, Apple dates don't have a year. Guess what it is, assuming the system date is correct,
+    # the photo date is correct, and the photo is less than a year old.
+    current_year = datetime.datetime.now().year
+    projected_date = datetime.datetime(year=current_year, month=month_num, day=day_num, hour=hours, minute=minutes, second=seconds)
+    if projected_date > datetime.datetime.now():
+        projected_date = datetime.datetime(year=current_year-1, month=month_num, day=day_num, hour=hours, minute=minutes, second=seconds)
+
+    return str(projected_date)
+
 def name_from_date(which_file):
     """Get a filename for a photo based on the date the photo was taken. Try several
     possible ways to get the date; if none works, just guess based on filename.
@@ -88,10 +150,15 @@ def name_from_date(which_file):
         try:
             dt = tags['Image DateTime'].values
         except KeyError:            # Sigh. Not all of my image-generating devices generate EXIF info in all circumstances.
-            if os.path.splitext(which_file)[1].strip().strip('.').strip() in movie_extensions:
+            if os.path.splitext(which_file)[1].strip().strip('.').strip() in (movie_extensions + audio_extensions):
                 dt = movie_recorded_date(which_file)
             else:
-                dt = which_file         # At this point, just guess based on filename.
+                dt = parse_Apple_filename(which_file)
+                if not dt:
+                    try:            # As a nearly-last-ditch resort, try getting the file-modified time.
+                        dt = str(datetime.fromtimestamp(os.path.getmtime(which_file)))
+                    except BaseException:
+                        dt = which_file         # At this point, give up and guess based on filename.
     dt = ''.join([char for char in dt if char.isdigit()])
     if len(dt) < 8:     # then we got filename gibberish, not a meaningful date.
         dt = ''.join([char for char in datetime.datetime.fromtimestamp(os.path.getmtime(which_file)).isoformat() if char.isdigit()])

@@ -53,8 +53,12 @@ cards. Currently, it performs these tasks on a directory full of photos:
              separate HDR_components folder.
 
 That's it. That's all it does. Current limitations include:
-    * It doesn't do anything with non-JPEG images, except for known raw images
-      and (some, known) videos. It does nothing with PNG, TIFF, BMP, etc.
+    * It has limited support for anything that's not a JPEG image:
+        * PNG images that have "Apple-style" date-type names are renamed to fit
+          in with the other images. (In my case, these are Instagram-derived.)
+        * known raw images are auto-processed to HDR.
+        * known audio and video files are also renamed based on date.
+      Aside from the above, this script does nothing with PNG, TIFF, BMP, etc.
     * It doesn't process any Magic Lantern scripts other than the enfuse/
       enfuse+align scripts. (ARE there others?)
     * It doesn't add the -d or -i (or -x, -y, or -z; or -C) options to the
@@ -67,6 +71,15 @@ runs through all of the above steps on all relevant files in THAT directory.
 If any action flags are specified, it runs through only those actions that are
 specified on the command line; this might be helpful if a previous run was
 interrupted, for instance.
+
+This program is part of Patrick Mooney's photo postprocessing scripts; the
+complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
+All programs in that collection are copyright 2015-2019 by Patrick Mooney; they
+are free software released under the GNU GPL, either version 3 or (at your
+option) any later version. See the file LICENSE.md for details.
+
+The latest version of these scripts can always be found at
+    https://github.com/patrick-brian-mooney/photo-processing
 """
 
 
@@ -333,15 +346,16 @@ def rename_photos():
     try:
         # First, get a list of all relevant files and (as best we can determine) when they were shot.
         file_list, which_files = [][:], [][:]
-        for which_ext in fu.raw_photo_extensions + ('jpg', 'JPG', "MOV", "mov"):
+        renameable_extensions = (fu.raw_photo_extensions + fu.jpeg_extensions +fu.other_image_extensions + fu.movie_extensions + fu.audio_extensions)
+        for which_ext in renameable_extensions:
             which_files += glob.glob('*' + which_ext)
-        for which_image in sorted(list(set(which_files))):
+        for i, which_image in enumerate(sorted(list(set(which_files)))):
             new_name = fu.name_from_date(which_image)
             file_list.append([new_name, which_image])
 
-        # OK, now sort that list (twice). First, sort by original filename (globbing filenames does not preserve this). Then, sort
-        # again by datetime string. Since Python sorts are stable, the second sort will preserve the order of the first when values
-        # for the sort-by key for the second sort are identical.
+        # OK, now sort that list (twice). First, sort by original filename (globbing filenames does not preserve
+        # order). Then, sort again by datetime string. Since Python sorts are stable, the second sort will preserve
+        # the order of the first when values for the sort-by key for the second sort are identical.
         file_list.sort(key=lambda item: item[1])
         file_list.sort(key=lambda item: item[0])
 
@@ -487,7 +501,7 @@ def create_HDRs_from_raws():
     the_raws = sorted(fu.list_of_raws())
     if the_raws:
         print("\nCreating HDR JPEGs (and intermediate scripts) from %d raw files ...\n\n" % len(the_raws))
-        for which_raw in the_raws:
+        for i, which_raw in enumerate(the_raws):
             hfr.HDR_tonemap_from_raw(which_raw)
     else:
         print("\nNo raw photos detected, moving on ...")
@@ -519,19 +533,20 @@ def hang_around():
             time.sleep(30)
 
 
-force_debug = True
+force_debug = False
 
 
 # OK, let's go
 if __name__ == "__main__":
+    print("We're starting, running under Python %s ..." % sys.version.split('\n')[0])
 
     if force_debug:
         # Whatever statements need are needed to set up an IDE run go here.
-        os.chdir('/home/patrick/Photos/2019-03-05')
+        os.chdir('/home/patrick/Photos/2019-09-14 (copy)')
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
                                      epilog="""Currently, this suite of scripts depends (directly itself, or indirectly by
-wayof the scripts they write) on these external programs:
+way of the scripts they write) on these external programs:
 
     program             Debian package name     My version
     -------             -------------------     ----------
@@ -595,9 +610,9 @@ option) any later version. See the file LICENSE.md for details.
         python_help()
         sys.exit(0)
 
-    # Massage the list of actions to perform
+    # Massage the list of actions to perform: If NO actions are specified, do EVERYTHING.
     actions = ['create', 'delete', 'empty', 'process', 'rename', 'rotate', 'run']
-    if not True in {a: args[a] for a in actions}.values():      # If NO actions are specified, do EVERYTHING.
+    if not True in {a: args[a] for a in actions}.values():
         for a in actions:
             args[a] = True
 
@@ -606,7 +621,7 @@ option) any later version. See the file LICENSE.md for details.
     elif args['directory'] != os.getcwd():
         os.chdir(args['directory'])
 
-    try:        # Read existing filename mappings if there are any.
+    try:        # Read existing filename mappings if there are any, and if they're readable.
         file_name_mappings.read_mappings('file_names.csv')
     except OSError:
         pass

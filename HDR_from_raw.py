@@ -10,6 +10,9 @@ complete set can be found at https://github.com/patrick-brian-mooney/photo-proce
 All programs in that collection are copyright 2015-2019 by Patrick Mooney; they
 are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
+
+The latest version of these scripts can always be found at
+    https://github.com/patrick-brian-mooney/photo-processing
 """
 
 
@@ -168,7 +171,7 @@ def create_HDR_script(rawfile):
         except ValueError:  # Otherwise, just sort the list, which does a fairly good job of picking a low value for the front.
             files_to_merge.sort()
             base_TIFF = files_to_merge[0]
-        new_script = chs.create_script_from_file_list(files_to_merge, metadata_source_file=rawfile, delete_originals=True, suppress_align=True)
+        new_script = chs.create_script_from_file_list(files_to_merge, metadata_source_file=fu.find_alt_version(rawfile, fu.jpeg_extensions), delete_originals=True, suppress_align=True)
         return os.path.abspath(new_script)
     except BaseException as e:
         log_it("ERROR: create_HDR_script() got error %s while trying to create a script for %s." % (e, rawfile))
@@ -183,12 +186,9 @@ def HDR_tonemap_from_raw(rawfile):
     os.system('chmod a-x -R %s' % shlex.quote(raw_script))
 
 
-
 if __name__ == "__main__":
     if force_debug:
-        sys.argv[1:] = ['/home/patrick/Photos/2019-01-22/[2018-12-30] Afternoon trip to Georgetown/2018-12-30_14_37_16_1.cr2',
-                        '/home/patrick/Photos/2019-01-22/[2018-12-30] Afternoon trip to Georgetown/2018-12-30_14_37_24_2.cr2',
-                        '/home/patrick/Photos/2019-01-22/[2018-12-30] Afternoon trip to Georgetown/2018-12-30_14_41_24_1.cr2']
+        pass            # Any debugging-harness commands go here.
     if len(sys.argv) == 1 or sys.argv[1] in ['--help', '-h']:
         print(__doc__)
         sys.exit(0)
@@ -197,4 +197,5 @@ if __name__ == "__main__":
             print("Processing %s ..." % whichfile)
             time.sleep(0.5)
             HDR_tonemap_from_raw(whichfile)
-        else: print("Skipping parameter %s that was passed in: it's not truthy!" % whichfile)
+        else:
+            print("Skipping parameter %s that was passed in: it's not truthy!" % whichfile)
