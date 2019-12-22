@@ -507,9 +507,6 @@ def create_HDRs_from_raws():
         print("\nNo raw photos detected, moving on ...")
 
 
-force_debug = False                     # Used if setup in IDE needed.
-
-
 def hang_around():
     """Offers to hang around, watching for executable shell scripts in the
     directory and running them if they appear. This might be handy if, for
@@ -533,7 +530,7 @@ def hang_around():
             time.sleep(30)
 
 
-force_debug = False
+force_debug = False                     # Used if setup in IDE needed.
 
 
 # OK, let's go
@@ -542,7 +539,7 @@ if __name__ == "__main__":
 
     if force_debug:
         # Whatever statements need are needed to set up an IDE run go here.
-        os.chdir('/home/patrick/Photos/2019-09-14 (copy)')
+        os.chdir('/home/patrick/Photos/2019-12-02')
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
                                      epilog="""Currently, this suite of scripts depends (directly itself, or indirectly by

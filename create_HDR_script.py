@@ -58,6 +58,8 @@ def create_script_from_file_list(HDR_input_files,
     align the images it's processing. This might be useful if, for instance, all
     of the images are already aligned.
     """
+    if not metadata_source_file:                        # If no metadata source specified, default to using the first
+        metadata_source_file = HDR_input_files[0]       # file in the list, on the assumption that's better than nothing.
     output_file = os.path.splitext(HDR_input_files[0])[0].strip().lstrip('HDR_AIS_').strip() + "_HDR.TIFF"
     wdir = os.path.split(os.path.realpath(HDR_input_files[0]))[0]
 
@@ -84,6 +86,8 @@ cd %s
         the_script += "exiftool -tagsfromfile %s %s\n" % (shlex.quote(metadata_source_file), shlex.quote(os.path.splitext(output_file)[0] + ".JPG"))
         the_script += """exiftool -n -Orientation=1 %s       # Output of CONVERT is already oriented; correct the JPG orientation\n""" % (shlex.quote(os.path.splitext(output_file)[0] + ".JPG"))
         the_script += "rm *_original\n"
+    else:
+        print("No metadata source file specified! Not attempting to copy metadata ...")
 
     if delete_originals:
         the_script += "\nrm %s" % ' '.join([shlex.quote(f) for f in HDR_input_files])
