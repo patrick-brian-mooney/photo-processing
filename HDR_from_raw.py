@@ -25,7 +25,7 @@ import patrick_logger               # https://github.com/patrick-brian-mooney/py
 from patrick_logger import log_it
 
 import create_HDR_script as chs
-import file_utils as fu
+import photo_file_utils as fu
 import config
 
 config.startup()                        # Check that the system meets minimum requirements; find necessary executables

@@ -23,7 +23,7 @@ import patrick_logger               # https://github.com/patrick-brian-mooney/py
 from patrick_logger import log_it
 
 import postprocess_photos as pp
-import file_utils as fu
+import photo_file_utils as fu
 import create_HDR_script as cHs
 import HDR_from_raw as Hfr
 import create_panorama_script as cps

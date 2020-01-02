@@ -89,7 +89,7 @@ from PIL import Image                   # [sudo] pip[3] install Pillow; https://
 
 import create_HDR_script as hdr         # https://github.com/patrick-brian-mooney/photo-processing/
 import HDR_from_raw as hfr
-import file_utils as fu
+import photo_file_utils as fu
 import config
 
 config.startup()                        # Check that the system meets minimum requirements; find necessary executables
