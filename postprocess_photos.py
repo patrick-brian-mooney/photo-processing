@@ -83,16 +83,28 @@ The latest version of these scripts can always be found at
 """
 
 
-import argparse, datetime, fnmatch, glob, os, pprint, re, shlex, shutil, subprocess, sys, time
+import argparse
+import datetime
+import fnmatch
+import glob
+import os
+import pprint
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import time
 
 from PIL import Image                   # [sudo] pip[3] install Pillow; https://python-pillow.org/
 
 import create_HDR_script as hdr         # https://github.com/patrick-brian-mooney/photo-processing/
 import HDR_from_raw as hfr
 import photo_file_utils as fu
-import config
+import photo_config
 
-config.startup()                        # Check that the system meets minimum requirements; find necessary executables
+
+photo_config.startup()                        # Check that the system meets minimum requirements; find necessary executables
 
 debugging = True
 raw_must_be_paired_with_JPEG = False    # If True, delete raw photos that don't have a pre-existing JPEG counterpart
@@ -177,7 +189,7 @@ def adjust_timestamps(file_list, yr=0, mo=0, days=0, hr=0, m=0, sec=0, rename=Tr
             os.chdir(os.path.dirname(file_list[0]))
         sign = "-" if [i for i in [yr, mo, days, hr, m, sec] if i < 0] else "+"
         f_date = "%s:%s:%s %s:%s:%s" % (abs(yr), abs(mo), abs(days), abs(hr), abs(m), abs(sec))
-        subprocess.call([config.executable_location('exiftool'), '-m', '-AllDates%s=%s' % (sign, f_date), '-FileModifyDate%s=%s' % (sign, f_date), '-overwrite_original'] + file_list)
+        subprocess.call([photo_config.executable_location('exiftool'), '-m', '-AllDates%s=%s' % (sign, f_date), '-FileModifyDate%s=%s' % (sign, f_date), '-overwrite_original'] + file_list)
         if rename:
             mappings = fu.FilenameMapper()
             mappings.read_mappings('file_names.csv')
@@ -213,7 +225,7 @@ def set_timestamps(file_list, yr, mo, days, hr, m, sec=0):
         if os.path.dirname(file_list[0]):
             os.chdir(os.path.dirname(file_list[0]))
         f_date = "%s:%s:%s %s:%s:%s" % (yr, mo, days, hr, m, sec)
-        subprocess.call([config.executable_location('exiftool'), '-m', '-AllDates=%s' % f_date, '-FileModifyDate=%s' % f_date, '-overwrite_original'] + file_list)
+        subprocess.call([photo_config.executable_location('exiftool'), '-m', '-AllDates=%s' % f_date, '-FileModifyDate=%s' % f_date, '-overwrite_original'] + file_list)
     finally:
         os.chdir(old_dir)
 
@@ -410,7 +422,7 @@ def rotate_photos():
         else:
             rest = None
         print()             # Give a comparatively subtle indication of when we've ended a block of 128 photos.
-        subprocess.call([config.executable_location('exiftran'), '-aigp'] + all_photos)
+        subprocess.call([photo_config.executable_location('exiftran'), '-aigp'] + all_photos)
         all_photos = rest
 
 

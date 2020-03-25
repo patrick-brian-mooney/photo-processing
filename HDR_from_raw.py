@@ -26,9 +26,10 @@ from patrick_logger import log_it
 
 import create_HDR_script as chs
 import photo_file_utils as fu
-import config
+import photo_config
 
-config.startup()                        # Check that the system meets minimum requirements; find necessary executables
+
+photo_config.startup()                        # Check that the system meets minimum requirements; find necessary executables
 
 
 patrick_logger.verbosity_level = 3
@@ -58,7 +59,7 @@ def produce_shifted_tonemap(rawfile, base_ISO, base_Ev, Ev_shift):
     """
     log_it("INFO: creating, tagging, and testing a file for Ev_shift %d" % Ev_shift, 2)
     outfile = 'HDR_AIS_' + os.path.splitext(rawfile)[0] + ("+" if Ev_shift >= 0 else "") + str(Ev_shift) + ".tif"
-    command = [config.executable_location('dcraw'), '-T', '-c', '-v', '-w', '-W', '-b', str(2 ** Ev_shift)]
+    command = [photo_config.executable_location('dcraw'), '-T', '-c', '-v', '-w', '-W', '-b', str(2 ** Ev_shift)]
     command += [rawfile]
     with open(outfile, mode="w") as the_output:
         subprocess.call(command, stdout=the_output)

@@ -17,7 +17,7 @@ import csv, datetime, glob, os, shlex, subprocess, sys
 
 import exifread                     # [sudo] pip[3] install exifread; or, https://pypi.python.org/pypi/ExifRead
 
-import config
+import photo_config
 
 
 raw_photo_extensions = ('CR2', 'cr2', 'DNG', 'dng', 'RAF', 'raf', 'DCR', 'dcr', 'NEF', 'nef')
@@ -71,7 +71,7 @@ def movie_recorded_date(which_file):
     """Tries to parse FFmpeg output to get the date the movie was recorded.
     #FIXME: probably quite fragile.
     """
-    result = subprocess.run([config.executable_location("ffmpeg"), "-i", which_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)       # And we therefore require Python 3.5.
+    result = subprocess.run([photo_config.executable_location("ffmpeg"), "-i", which_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)       # And we therefore require Python 3.5.
     output = result.stderr.decode().split('\n')     # FFmpeg returns result code 1 if no action specified. That's OK.
     try:
         time_line = [i for i in output if 'creation_time' in i][0]
@@ -137,6 +137,7 @@ def parse_Apple_filename(which_file):
         projected_date = datetime.datetime(year=current_year-1, month=month_num, day=day_num, hour=hours, minute=minutes, second=seconds)
 
     return str(projected_date)
+
 
 def name_from_date(which_file):
     """Get a filename for a photo based on the date the photo was taken. Try several

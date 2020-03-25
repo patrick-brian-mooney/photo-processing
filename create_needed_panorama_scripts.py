@@ -22,9 +22,12 @@ The latest version of these scripts can always be found at
     https://github.com/patrick-brian-mooney/photo-processing
 """
 
-import glob, os, subprocess, time
+import glob
+import os
+import subprocess
+import time
 
-import config               # https://github.com/patrick-brian-mooney/photo-processing/
+import photo_config               # https://github.com/patrick-brian-mooney/photo-processing/
 
 
 def main():
@@ -39,7 +42,7 @@ def main():
                     print("But there's an existing project file! Skipping...")
                 else:
                     print("Creating new project script ...")
-                    subprocess.call([os.path.join(config.executable_location('photo-processing'),
+                    subprocess.call([os.path.join(photo_config.executable_location('photo-processing'),
                                                  'create_panorama_script.py')])
         finally:
             os.chdir(olddir)

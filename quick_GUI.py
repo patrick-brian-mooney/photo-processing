@@ -28,9 +28,9 @@ import create_HDR_script as cHs
 import HDR_from_raw as Hfr
 import create_panorama_script as cps
 
-import config
+import photo_config
 
-config.startup()                        # Check that the system meets minimum requirements; find necessary executables
+photo_config.startup()                        # Check that the system meets minimum requirements; find necessary executables
 
 
 patrick_logger.verbosity_level = 5
@@ -237,7 +237,7 @@ def open_in_luminance(file_list):
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to open in Luminance"
     raws = [fu.find_alt_version(x, fu.raw_photo_extensions) for x in file_list]
-    subprocess.call([config.executable_location('luminance-hdr')] + raws)
+    subprocess.call([photo_config.executable_location('luminance-hdr')] + raws)
     sys.exit()
 
 
@@ -256,7 +256,7 @@ def exif_rotate(file_list, orientation):
     """
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to exif_rotate()"
-    subprocess.call([config.executable_location('exiftran'), '-%sig' % orientation] + file_list)
+    subprocess.call([photo_config.executable_location('exiftran'), '-%sig' % orientation] + file_list)
     sys.exit()
 
 
@@ -264,7 +264,7 @@ def regen_thumb(file_list):
     """Regenerate the thumbnail image for a JPEG file."""
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to regen_thumb()"
-    subprocess.call([config.executable_location('exiftran'), '-ig' ] + file_list)
+    subprocess.call([photo_config.executable_location('exiftran'), '-ig'] + file_list)
     sys.exit()
 
 
@@ -274,7 +274,7 @@ def resize_files(file_list, longest_side):
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to resize_files()"
     for f in file_list:
-        subprocess.call([config.executable_location('mogrify'), '-resize', '%dx%d' % (longest_side, longest_side)] + [f])
+        subprocess.call([photo_config.executable_location('mogrify'), '-resize', '%dx%d' % (longest_side, longest_side)] + [f])
     sys.exit()
 
 
