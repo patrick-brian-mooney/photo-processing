@@ -126,13 +126,14 @@ def increment_and_rename(file_list):
     assert isinstance(file_list, (list, tuple))
     assert len(file_list) >= 1, "ERROR: you must specify at least one file to increment_and_rename()"
     log_it("INFO: increment_and_rename() called for %d files" % len(file_list), 2)
+    log_it("INFO: current directory is %s" % os.getcwd(), 3)
+    log_it("INFO: those files are: %s" % file_list, (4 if len(file_list) > 4 else 2))
     mappings = fu.FilenameMapper()
     mappings.read_mappings('file_names.csv')
     for f in file_list:
         log_it("INFO: incrementing timestamp on '%s' and renaming" % f, 3)
         pp._increment_timestamp([f])
-        new_name = fu.find_unique_name(fu.name_from_date(f))
-        mappings.rename_and_map(f, new_name)
+        # Note that _increment_timestamp() will automatically rename the file
     mappings.write_mappings()
     sys.exit()
 
@@ -149,22 +150,13 @@ def decrement_and_rename(file_list):
     log_it("INFO: decrement_and_rename() called for %d files" % len(file_list), 2)
     log_it("INFO: current directory is %s" % os.getcwd(), 3)
     log_it("INFO: those files are: %s" % file_list, (4 if len(file_list) > 4 else 2))
-    try:
-        olddir = os.getcwd()
-        files_dir = os.path.dirname(file_list[0])
-        if files_dir:
-            os.chdir(files_dir)
-        mappings = fu.FilenameMapper()
-        mappings.read_mappings('file_names.csv')
-        log_it("INFO: file name mappings read: %s" % mappings, 2)
-        for f in file_list:
-            log_it("INFO: decrementing timestamp on '%s' and renaming" % f, 3)
-            pp._decrement_timestamp([f])
-            new_name = fu.find_unique_name(fu.name_from_date(f))
-            mappings.rename_and_map(f, new_name)
-        mappings.write_mappings()
-    finally:
-        os.chdir(olddir)
+    mappings = fu.FilenameMapper()
+    mappings.read_mappings('file_names.csv')
+    for f in file_list:
+        log_it("INFO: decrementing timestamp on '%s' and renaming" % f, 3)
+        pp._decrement_timestamp([f])
+        # Note that _decrement_timestamp() will automatically rename the file
+    mappings.write_mappings()
     sys.exit()
 
 
