@@ -182,9 +182,12 @@ def create_HDR_script(rawfile):
 
 def HDR_tonemap_from_raw(rawfile):
     """Write an HDR-creation script for RAWFILE, then run it."""
-    raw_script = create_HDR_script(rawfile)
-    subprocess.call([os.path.abspath(raw_script)])
-    os.system('chmod a-x -R %s' % shlex.quote(raw_script))
+    try:
+        raw_script = create_HDR_script(rawfile)
+        subprocess.call([os.path.abspath(raw_script)])
+        os.system('chmod a-x -R %s' % shlex.quote(raw_script))
+    except (Exception,) as errrr:
+        print(f"Unable to create HDR tonemap from {rawfile}! The system said: {errrr}.")
 
 
 if __name__ == "__main__":
