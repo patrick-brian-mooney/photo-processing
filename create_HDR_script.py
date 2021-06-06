@@ -150,8 +150,17 @@ def create_script_from_first_file(first_file, num_files=total_number_of_files, f
     os.chdir(oldpath)
 
 
+force_debug = False
 
 if __name__ == "__main__":
+    if force_debug:
+        import glob
+        os.chdir('/home/patrick/Photos/2020-09-21/HDR_components')
+        files = glob.glob('*jpg')
+        assert (len(files) % 3) == 0
+        for one, two, three in zip(*[iter(files)]*3):
+            create_script_from_file_list([one, two, three], metadata_source_file=one,)
+        sys.exit()
     if len(sys.argv) > 1:
         if sys.argv[1] == '--help' or sys.argv[1] == '-h':
             print_usage()

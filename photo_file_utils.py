@@ -13,7 +13,13 @@ The latest version of these scripts can always be found at
 """
 
 
-import csv, datetime, glob, os, shlex, subprocess, sys
+import csv
+import datetime
+import glob
+import os
+import shlex
+import subprocess
+import sys
 
 import exifread                     # [sudo] pip[3] install exifread; or, https://pypi.python.org/pypi/ExifRead
 
