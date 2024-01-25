@@ -55,6 +55,7 @@ The latest version of these scripts can always be found at
 
 import os, glob, shlex
 
+
 def produce_script(the_files=None):
     if not the_files:
         the_files = sorted(list(set(glob.glob('*JPG') + glob.glob('*jpg'))))
