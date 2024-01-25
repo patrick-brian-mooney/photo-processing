@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/patrick/Documents/programming/python_projects/photo-processing/bin/python3
 # -*- coding: utf-8 -*-
 """Takes a raw image file and creates a tonemapped HDR from it. Requires dcraw
 and the panotools suite.

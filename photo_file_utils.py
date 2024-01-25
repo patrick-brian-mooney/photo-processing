@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/patrick/Documents/programming/python_projects/photo-processing/bin/python3
 # -*- coding: utf-8 -*-
 """A series of file-related utilities for my photo postprocessing scripts.
 
@@ -28,7 +28,7 @@ import photo_config
 
 raw_photo_extensions = ('CR2', 'cr2', 'DNG', 'dng', 'RAF', 'raf', 'DCR', 'dcr', 'NEF', 'nef')
 jpeg_extensions = ('jpg', 'JPG', 'jpeg', 'JPEG', 'jpe', 'JPE')
-other_image_extensions = ('png', 'PNG')
+other_image_extensions = ('png', 'PNG', 'webp', 'WEBP')
 json_extensions = ('json', 'JSON')
 all_alternates = tuple(sorted(list(raw_photo_extensions + jpeg_extensions + json_extensions + other_image_extensions)))
 
@@ -115,8 +115,11 @@ def parse_Apple_filename(which_file):
     # First massage, then split into date and time.
     ret = which_file.lower().strip().lstrip('photo').strip()
     ret = os.path.splitext(ret)[0]
-    day_string, time_string = ret.split(',')
-    day_string, time_string = day_string.strip(), time_string.strip()
+    try:
+        day_string, time_string = ret.split(',')
+        day_string, time_string = day_string.strip(), time_string.strip()
+    except ValueError:      # Can't split into day string and time string? Probably nbot an Ap ple date after all.
+        return None
     try:
         month_num, day_num = parse_Apple_day(day_string)
     except TypeError:       # Can't expand the tuple? parse_Apple_day didn't work. This is probably not an Apple date.

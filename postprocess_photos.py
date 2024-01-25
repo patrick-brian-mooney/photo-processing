@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/patrick/Documents/programming/python_projects/photo-processing/bin/python3
 # -*- coding: utf-8 -*-
 """
 The postprocess_photos.py script performs the kind of postprocessing work that
@@ -546,16 +546,14 @@ force_debug = False                     # Used if setup in IDE needed.
 
 
 # OK, let's go
-if __name__ == "__main__":
-    print("We're starting, running under Python %s ..." % sys.version.split('\n')[0])
-
+def main():
     if force_debug:
         # Whatever statements need are needed to set up an IDE run go here.
-        os.chdir('/home/patrick/Photos/2019-12-02')
+        os.chdir('/home/patrick/Photos/2022-02-15')
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
                                      epilog="""Currently, this suite of scripts depends (directly itself, or indirectly by
-way of the scripts they write) on these external programs:
+way of the scripts it writes) on these external programs:
 
     program             Debian package name     My version
     -------             -------------------     ----------
@@ -591,7 +589,7 @@ This program comes with ABSOLUTELY NO WARRANTY. Use at your own risk.
 
 This program is part of Patrick Mooney's photo postprocessing scripts; the
 complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
-All programs in that collection are copyright 2015-2019 by Patrick Mooney; they
+All programs in that collection are copyright 2015-2023 by Patrick Mooney; they
 are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
 """,)
@@ -646,6 +644,9 @@ option) any later version. See the file LICENSE.md for details.
 
     if input("Want me to hang around and run scripts that show up? (Say NO if unsure.) --|  ").strip().lower()[0] == "y":
         print('\n\nOK, hit ctrl-C when finished.\n')
-        hang_around()
+        hang_around()                                      # We're done!
 
-   # We're done!
+
+if __name__ == "__main__":
+    print("We're starting, running under Python %s ..." % sys.version.split('\n')[0])
+    main()

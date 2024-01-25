@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#/home/patrick/Documents/programming/python_projects/photo-processing/bin/python3
 # -*- coding: utf-8 -*-
 """This quick hack writes a bash script that uses the PTTools to stitch a
 panorama from all photos in the current directory. It assumes that all of the

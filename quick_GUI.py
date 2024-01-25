@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/patrick/Documents/programming/python_projects/photo-processing/bin/python3
 # -*- coding: utf-8 -*-
 """A GUI providing access to functions in the postprocess_photos script, plus
 access to several external utilities. I primarily use it to make quick changes

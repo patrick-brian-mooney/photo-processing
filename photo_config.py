@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/patrick/Documents/programming/python_projects/photo-processing/bin/python3
 # -*- coding: utf-8 -*-
 """
 A series of declarations about external programs, used by other scripts in the
