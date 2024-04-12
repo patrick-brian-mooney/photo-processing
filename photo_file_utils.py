@@ -152,21 +152,24 @@ def name_from_date(which_file):
     """Get a filename for a photo based on the date the photo was taken. Try several
     possible ways to get the date; if none works, just guess based on filename.
     """
-    with open(which_file, 'rb') as f:
-        tags = exifread.process_file(f, details=False)    # details=False means don't parse thumbs or other slow data we don't need.
     try:
+        try:
+            with open(which_file, 'rb') as f:
+                tags = exifread.process_file(f, details=False)  # don't parse thumbs or other slow data we don't need.
+        except AttributeError as errrr:     # guard against some unprocessable HEIF files returning None
+            raise KeyError                      # just move along if process_file bombs on an intermediate None
         dt = tags['EXIF DateTimeOriginal'].values
     except KeyError:
         try:
             dt = tags['Image DateTime'].values
-        except KeyError:            # Sigh. Not all of my image-generating devices generate EXIF info in all circumstances.
+        except (KeyError, UnboundLocalError):       # Sigh. Not all image-making devices always generate EXIF info.
             if os.path.splitext(which_file)[1].strip().strip('.').strip() in (movie_extensions + audio_extensions):
                 dt = movie_recorded_date(which_file)
             else:
                 dt = parse_Apple_filename(which_file)
                 if not dt:
                     try:            # As a nearly-last-ditch resort, try getting the file-modified time.
-                        dt = str(datetime.fromtimestamp(os.path.getmtime(which_file)))
+                        dt = str(datetime.datetime.fromtimestamp(os.path.getmtime(which_file)))
                     except BaseException:
                         dt = which_file         # At this point, give up and guess based on filename.
     dt = ''.join([char for char in dt if char.isdigit()])

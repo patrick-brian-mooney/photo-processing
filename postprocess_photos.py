@@ -542,14 +542,12 @@ def hang_around():
             time.sleep(30)
 
 
-force_debug = False                     # Used if setup in IDE needed.
-
-
 # OK, let's go
 def main():
+    force_debug = False  # Used if setup in IDE needed.
     if force_debug:
         # Whatever statements need are needed to set up an IDE run go here.
-        os.chdir('/home/patrick/Photos/2022-02-15')
+        os.chdir('/home/patrick/Photos/2024-04-10')
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
                                      epilog="""Currently, this suite of scripts depends (directly itself, or indirectly by
