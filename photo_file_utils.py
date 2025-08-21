@@ -15,14 +15,13 @@ The latest version of these scripts can always be found at
 
 import csv
 import datetime
-import glob
 import os
 import shlex
 import subprocess
 import sys
 
 from pathlib import Path
-from typing import Iterable, Mapping, Optional, Sequence, Union
+from typing import Iterable, Mapping, Optional, Sequence, Tuple, Type, Union
 
 
 import exifread                     # [sudo] pip[3] install exifread; or, https://pypi.python.org/pypi/ExifRead
@@ -43,12 +42,12 @@ darkframe_location = '/home/patrick/Photos/t7i_darkframe_for_dcraw.pgm'
 measured_darkness_level = "2047.901764"     # pamsumm -mean on the previously specified image.
 
 
-def get_value_from_any_tag(filename: Union[str, Path],
+def get_value_from_any_tag(filename: Path,
                            taglist: Iterable[str]) -> Union[str, None]:
     """Read the EXIF tags from the file in FILENAME, then return the value of the
     first tag in the file that is found from the desired tags specified in TAGLIST.
     """
-    # assert isinstance(filename, Path) #FIXME! uncomment!
+    assert isinstance(filename, Path)
     assert isinstance(taglist, Iterable), "ERROR! taglist must be an iterable container!"
     assert all([isinstance(str, f) for f in taglist]), "ERROR! taglist must contain tags represented as strings!"
 
@@ -89,88 +88,103 @@ def find_unique_name(suggested_name: Path) -> Path:
     return the_name
 
 
-def movie_recorded_date(which_file):
+def movie_recorded_date(which_file: Path):
     """Tries to parse FFmpeg output to get the date the movie was recorded.
     #FIXME: probably quite fragile.
     """
-    result = subprocess.run([photo_config.executable_location("ffmpeg"), "-i", which_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE)       # And we therefore require Python 3.5.
+    assert isinstance(which_file, Path), "ERROR! files passed to movie_recorded_date must be Paths!"
+    result = subprocess.run([photo_config.executable_location("ffmpeg"), "-i", str(which_file)],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)     # And we therefore require Python 3.5.
     output = result.stderr.decode().split('\n')     # FFmpeg returns result code 1 if no action specified. That's OK.
+
     try:
         time_line = [i for i in output if 'creation_time' in i][0]
         return ''.join([c for c in time_line.strip() if c.isdigit()])
+
     except IndexError:
         return ''.join([c for c in which_file if c.isdigit()])
 
 
-Apple_day_names = ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec')
+Apple_month_names = ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec')
 
 
-def parse_Apple_day(day_string):
+def parse_apple_day(day_string: str) -> Union[None, Tuple[int, int]]:
     """Takes an "Apple day", a string of the form 'Jun 26', and parses it into a
-    tuple: (numeric month, numeric day). Probably quite fragile. This is the
-    filename format for photos coming off of my iPhone. If this function cannot
-    parse the DAY_STRING string in the proper format, it returns None.
+    tuple: (numeric month, numeric day). This is the filename format for photos
+    coming from my iPhone. If this function cannot parse the DAY_STRING string in
+    the proper format, it returns None.
 
     This is probably rather fragile, but happens to work for me right now.
     """
-    for month_num, month_name in enumerate(Apple_day_names):
+    for month_num, month_name in enumerate(Apple_month_names):
         if month_name in day_string:
             try:
-                return (1 + month_num, int(day_string[len(month_name) + day_string.index(month_name):].strip()))
+                return 1 + month_num, int(day_string[len(month_name) + day_string.index(month_name):].strip())
             except (ValueError, IndexError):
                 pass
+
     return None
 
 
-def parse_Apple_filename(which_file):
+def parse_apple_filename(which_file: Path) -> Union[str, None]:
     """Parses "Apple filenames," as defined above, attempting to pick dates and times
     out of strings with the format 'Photo Jun 26, 6 06 59 PM.jpg'. Returns a
     numeric date string, like other date-detecting routines in here.
     """
-    if 'photo' not in which_file.lower():           # Then it's not an Apple date
+    assert isinstance(which_file, Path), "ERROR! files passed to parse_apple_filename must be Paths!"
+    if 'photo' not in str(which_file).casefold():           # Then it's not an Apple date
         return None
 
     # First massage, then split into date and time.
-    ret = which_file.lower().strip().lstrip('photo').strip()
-    ret = os.path.splitext(ret)[0]
+    photo_loc = str(which_file).casefold().find('photo') + len('photo')
+    ret = str(which_file).casefold()[photo_loc:].strip()
+    ret = Path(ret).stem
+
     try:
         day_string, time_string = ret.split(',')
         day_string, time_string = day_string.strip(), time_string.strip()
-    except ValueError:      # Can't split into day string and time string? Probably nbot an Ap ple date after all.
+    except ValueError:      # Can't split into day string and time string? Probably not an Apple date after all.
         return None
+
     try:
-        month_num, day_num = parse_Apple_day(day_string)
-    except TypeError:       # Can't expand the tuple? parse_Apple_day didn't work. This is probably not an Apple date.
+        month_num, day_num = parse_apple_day(day_string)
+    except TypeError:       # Can't expand the tuple? parse_apple_day didn't work. This is probably not an Apple date.
         return None
 
     # OK, figure out what time the photo was taken, if possible.
     stripped_time = ''.join([c for c in time_string if (c.isspace() or c.isdigit())])
     hours, minutes, *seconds = stripped_time.split(' ')
-    if isinstance(seconds, (list, tuple)):  # If we wound up with a tuple instead of a string, rectify that.
+
+    if isinstance(seconds, (list, tuple)):  # If seconds winds up being a tuple instead of a string, fix it.
         seconds = seconds[0]
     if 'am' in seconds:                                 # Drop any parenthetical sequence we may have picked up.
         seconds = seconds[:seconds.index('am')]
     elif 'pm' in seconds:
         seconds = seconds[:seconds.index('pm')]
+
     hours, minutes, seconds = int(hours), int(minutes), int(seconds)
-    if (('pm' in time_string.lower()) and (hours < 13)):
+    if ('pm' in time_string.casefold()) and (hours < 13):
         hours += 12
 
     # Annoyingly, Apple dates don't have a year. Guess what it is, assuming the system date is correct,
     # the photo date is correct, and the photo is less than a year old.
     current_year = datetime.datetime.now().year
-    projected_date = datetime.datetime(year=current_year, month=month_num, day=day_num, hour=hours, minute=minutes, second=seconds)
+    projected_date = datetime.datetime(year=current_year, month=month_num, day=day_num,
+                                       hour=hours, minute=minutes, second=seconds)
     if projected_date > datetime.datetime.now():
-        projected_date = datetime.datetime(year=current_year-1, month=month_num, day=day_num, hour=hours, minute=minutes, second=seconds)
+        projected_date = datetime.datetime(year=current_year-1, month=month_num, day=day_num,
+                                           hour=hours, minute=minutes, second=seconds)
 
     return str(projected_date)
 
 
-def name_from_date(which_file: str) -> str:
-    """Get a filename for a photo based on the date the photo was taken. Try several
-    possible ways to get the date; if none works, just guess based on filename.
+def name_from_date(which_file: Path) -> Path:
+    """Get a new filename for a photo based on the date the photo was taken. Try
+    several possible ways to get the date; if none works, just guess based on
+    the photo's current filename.
     """
-    assert isinstance(which_file, str)      # FIXME! We should be taking and returning Paths!
+    assert isinstance(which_file, Path)      # FIXME! We should be taking and returning Paths!
+    dt: Optional[str] = None
 
     try:
         try:
@@ -180,46 +194,53 @@ def name_from_date(which_file: str) -> str:
             raise KeyError                      # just move along if process_file bombs on an intermediate None
         dt = tags['EXIF DateTimeOriginal'].values
     except KeyError:
+        pass
+
+    if not dt:
         try:
             dt = tags['Image DateTime'].values
         except (KeyError, UnboundLocalError):       # Sigh. Not all image-making devices always generate EXIF info.
             if os.path.splitext(which_file)[1].strip().strip('.').strip() in (movie_extensions + audio_extensions):
                 dt = movie_recorded_date(which_file)
             else:
-                dt = parse_Apple_filename(which_file)
+                dt = parse_apple_filename(which_file)
+
                 if not dt:
                     try:            # As a nearly-last-ditch resort, try getting the file-modified time.
                         dt = str(datetime.datetime.fromtimestamp(os.path.getmtime(which_file)))
                     except BaseException:
-                        dt = which_file         # At this point, give up and guess based on filename.
+                        dt = str(which_file)        # At this point, give up and guess based on filename.
+
     dt = ''.join([char for char in dt if char.isdigit()])
     if len(dt) < 8:     # then we got filename gibberish, not a meaningful date.
-        dt = ''.join([char for char in datetime.datetime.fromtimestamp(os.path.getmtime(which_file)).isoformat() if char.isdigit()])
+        dt = datetime.datetime.fromtimestamp(os.path.getmtime(which_file)).isoformat()
+        dt = ''.join([char for char in dt if char.isdigit()])
+
     dt = dt.ljust(14)   # Even if it's just gibberish, make sure it's long enough gibberish
-    return '%s-%s-%s_%s_%s_%s%s' % (dt[0:4], dt[4:6], dt[6:8], dt[8:10], dt[10:12], dt[12:14], os.path.splitext(which_file)[1].lower())
+    return Path(f'{dt[0:4]}-{dt[4:6]}-{dt[6:8]}_{dt[8:10]}_{dt[10:12]}_{dt[12:14]}{which_file.suffix.lower()}')
 
 
-def find_alt_version(orig_name: Union[str, Path],                                       # FIXME! require Path
-                     alternate_extensions: Sequence[str]) -> Union[str, None]:          # FIXME! return Path
+def find_alt_version(orig_name: Path,
+                     alternate_extensions: Sequence[str]) -> Union[Path, None]:
     """Check to see if there is an alternate version of this file (e.g., a raw file
     corresponding to a JPEG). This logic depends entirely on "alternate versions"
     having identical filenames with differing extensions.
 
     If an "alternate version" exists, return its name; otherwise, return None.
 
-    ALTERNATE_EXTENSIONS is a list (or tuple) of other extensions to check for.
-    This list (or tuple, or set, or ...) is checked in order, and the first file
-    found with a matching extension is considered to be the match we're looking for,
-    even if there are alternate versions. That is to say: there is no effort made to
-    choose the "best" version, except insofar as the earliest extension listed is
-    assumed to belong to the "best" file.
+    ALTERNATE_EXTENSIONS is a sequence of other extensions to check for. This list
+    is checked in order, and the first file found with a matching extension is
+    considered to be the match we're looking for, even if there are more alternate
+    versions. That is to say: there is no effort made to choose the "best" version,
+    except insofar as the earliest extension listed is assumed to belong to the
+    "best" file.
     """
-    if not isinstance(orig_name, str): orig_name = str(orig_name)                       # FIXME! require Path
+    assert isinstance(orig_name, Path), "ERROR! Files passed to find_alt_version must be Paths!"
 
-    for whichext in alternate_extensions:
-        altfile = os.path.splitext(orig_name)[0] + '.' + whichext
-        if os.path.exists(altfile):
-            return altfile
+    for ext in alternate_extensions:
+        alt_file = orig_name.with_suffix(ext)
+        if alt_file.exists():
+            return alt_file
 
     return None                 # If we didn't find one ...
 
@@ -233,7 +254,7 @@ def list_of_raws() -> Sequence[Path]:
     return sorted(set(all_raws))
 
 
-class FilenameMapper(object):
+class FilenameMapper(object):   # FIXME: We should make this indexable like a standard dictionary.
     """
     Maintains a list of old-filename-to-new-filename mappings:
         "original file name" -> "current file name".
@@ -245,31 +266,35 @@ class FilenameMapper(object):
     find this helpful in my photo-postprocessing scripts because I want to be able
     to restore the files' original names if necessary.
     """
-    def __init__(self, mapping: Optional[Mapping] = None,
-                 filename: Optional[Union[str, Path]] = None):           # FIXME! use Path
+    def __init__(self, mapping: Optional[Type[Mapping]] = None,
+                 map_file: Optional[Path] = None):           # FIXME! use Path
         """Set up the mapping names. MAPPING maps oldname -> newname.
 
         FILENAME should be the path to a closed file in .csv format. It is not
         read, even if it already exists; it simply becomes the name of the file
         that WILL BE used to store the mapping data.
         """
-        if filename: assert isinstance(filename, str)   # FIXME! use Path
+        if map_file:
+            assert isinstance(map_file, Path)   # FIXME! use Path
+
         if mapping:
-            assert isinstance(mapping, Mapping), "ERROR! a mapping used to initialize a FilenameMapper must be a proper mapping!"
+            if not isinstance(mapping, Mapping):
+                raise TypeError("ERROR! a mapping used to initialize a FilenameMapper must be a proper mapping!")
             self.mapping = mapping
         else:
             self.mapping = {}.copy()
 
-        self.filename = filename
+        self.filename = map_file
 
     def __repr__(self):
-        """Return a printable representation."""
-        ret = "< FilenameMapper object (mapping %d files) " % len(self.mapping)
-        ret += "(stored in %s) " % shlex.quote(str(self.filename)) if self.filename else "(not tied to a file) "
+        """Return a printable representation.
+        """
+        ret = f"< FilenameMapper object (mapping {len(self.mapping)} files) "
+        ret += f"(stored in {shlex.quote(str(self.filename))}) " if self.filename else "(not tied to a file) "
         ret += ">"
         return ret
 
-    def read_mappings(self, mappings_filename: Union[str, Path]):
+    def read_mappings(self, map_filename: Union[str, Path]):
         """Read mapping dictionary back into memory. Do this before restoring
         original file names, or before doing other things that require a set of
         filename mappings to be in memory.
@@ -284,17 +309,18 @@ class FilenameMapper(object):
         This procedure also registers FILENAME as the filename associated with the
         .csv file used to maintain the object's data.
         """
-        assert isinstance(mappings_filename, (str, Path))   # FIXME! Use Path!
+        assert isinstance(map_filename, Path)
 
         try:
-            with open(mappings_filename, newline='') as infile:
+            with open(map_filename, newline='') as infile:
                 reader = csv.reader(infile)
                 reader.__next__()                                                   # Skip the header row.
                 for key, value in {rows[0]:rows[1] for rows in reader}.items():
                     self.add_mapping(key, value)
         except FileNotFoundError:
             pass                    # Oh well, no mappings file found to read from.
-        self.filename = mappings_filename
+
+        self.filename = map_filename
 
     def add_mapping(self, orig_name: Union[str, Path],
                     new_name: Union[str, Path]):
