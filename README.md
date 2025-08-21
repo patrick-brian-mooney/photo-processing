@@ -30,7 +30,7 @@ The external programs required by these scripts are:
   <tr><td><code>hugin_executor</code></td><td>?</td><td>?</td></tr>
 </table>
 
-There are also several Python modules outside of the standard library required by these scripts:
+There are also several Python modules outside the standard library required by these scripts:
 
 <ul>
   <li><code><a rel="muse" href="https://pypi.python.org/pypi/ExifRead">exifread</a></code></li> (or install with <code>[sudo] pip[3] [-U] install exifread</code>)</li>

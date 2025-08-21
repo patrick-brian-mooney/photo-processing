@@ -1,8 +1,8 @@
 #!/home/patrick/Documents/programming/python_projects/photo-processing/bin/python3
 # -*- coding: utf-8 -*-
 """This quick hack makes an HDR script from all JPG photos in the current
-directory. Then it runs it. It assumes that all of the photos are JPGs in the
-current directory, that all of the JPGs in the current directory are photos for
+directory. Then it runs it. It assumes that all the photos are JPGs in the
+current directory, that all the JPGs in the current directory are photos for
 the project, and that there are no other .SH files in the current directory.
 
 This program comes with ABSOLUTELY NO WARRANTY. Use at your own risk.
@@ -17,15 +17,21 @@ The latest version of these scripts can always be found at
     https://github.com/patrick-brian-mooney/photo-processing
 """
 
-import os, glob
+import os
+import sys
 
-import postprocess_photos as pp     # https://github.com/patrick-brian-mooney/photo-processing/blob/master/postprocess_photos.py
-import create_HDR_script as cHs     # https://github.com/patrick-brian-mooney/photo-processing/blob/master/create_HDR_script.py
+from pathlib import Path
+
+import postprocess_photos as pp     # https://github.com/patrick-brian-mooney/photo-processing/
+import create_HDR_script as cHs
 
 
-the_files = sorted(glob.glob('*JPG') + glob.glob('*jpg'))
-if len(the_files) > 0:
-    cHs.create_script_from_file_list(the_files)
-    pp.run_shell_scripts()
-else:
-    raise IndexError('You must call HDR_from_all.py in a folder with at least one *jpg or *JPG file;\n   current working directory is: %s' % os.getcwd())
+if __name__ == "__main__":
+    the_files = [f for f in Path().glob('*') if f.suffix.casefold() == '.jpg']
+    if len(the_files) > 0:
+        cHs.create_script_from_file_list(the_files)
+        pp.run_shell_scripts()
+    else:
+        print('You must call HDR_from_all.py in a folder with at least one *jpg or *JPG file')
+        print(f'   current working directory is: {os.getcwd()}')
+        sys.exit(1)

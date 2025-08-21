@@ -21,9 +21,13 @@ import shlex
 import subprocess
 import sys
 
+from pathlib import Path
+from typing import Iterable, Mapping, Optional, Sequence, Union
+
+
 import exifread                     # [sudo] pip[3] install exifread; or, https://pypi.python.org/pypi/ExifRead
 
-import photo_config
+import photo_config                 # https://github.com/patrick-brian-mooney/photo-processing
 
 
 raw_photo_extensions = ('CR2', 'cr2', 'DNG', 'dng', 'RAF', 'raf', 'DCR', 'dcr', 'NEF', 'nef')
@@ -39,10 +43,15 @@ darkframe_location = '/home/patrick/Photos/t7i_darkframe_for_dcraw.pgm'
 measured_darkness_level = "2047.901764"     # pamsumm -mean on the previously specified image.
 
 
-def get_value_from_any_tag(filename, taglist):
+def get_value_from_any_tag(filename: Union[str, Path],
+                           taglist: Iterable[str]) -> Union[str, None]:
     """Read the EXIF tags from the file in FILENAME, then return the value of the
     first tag in the file that is found from the desired tags specified in TAGLIST.
     """
+    # assert isinstance(filename, Path) #FIXME! uncomment!
+    assert isinstance(taglist, Iterable), "ERROR! taglist must be an iterable container!"
+    assert all([isinstance(str, f) for f in taglist]), "ERROR! taglist must contain tags represented as strings!"
+
     try:
         with open(filename, 'rb') as f:
             tags = exifread.process_file(f, details=False)
@@ -51,25 +60,32 @@ def get_value_from_any_tag(filename, taglist):
                 return tags[tag]
             except KeyError:
                 continue
+
     except BaseException:
         return None
+
     return None
 
 
-def find_unique_name(suggested_name):
+def find_unique_name(suggested_name: Path) -> Path:
     """Given a SUGGESTED_NAME, return a version of that name that is unique in the
     directory in which it occurs, either by (a) just returning SUGGESTED_NAME if it
     is already unique, or (b) appending successively higher integers to the name
     until it becomes unique.
     """
-    fname, f_ext = os.path.splitext(suggested_name)
-    found, index = False, 1
+    assert isinstance(suggested_name, Path)
+
+    f_name, f_ext = suggested_name.stem, suggested_name.suffix
+
+    found, index, the_name = False, 1, Path(str(suggested_name).strip())
     while not found:
-        the_name = '%s_%d%s' % (fname, index, f_ext) if (index > 0) else suggested_name
-        if os.path.exists(the_name):
+        if index > 0:
+            the_name = Path(f'{f_name}_{index}.{f_ext}'.strip())
+        if the_name.exists():
             index += 1          # Bump the counter and try again
         else:
             found = True        # Signal we're done
+
     return the_name
 
 
@@ -87,6 +103,8 @@ def movie_recorded_date(which_file):
 
 
 Apple_day_names = ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec')
+
+
 def parse_Apple_day(day_string):
     """Takes an "Apple day", a string of the form 'Jun 26', and parses it into a
     tuple: (numeric month, numeric day). Probably quite fragile. This is the
@@ -148,10 +166,12 @@ def parse_Apple_filename(which_file):
     return str(projected_date)
 
 
-def name_from_date(which_file):
+def name_from_date(which_file: str) -> str:
     """Get a filename for a photo based on the date the photo was taken. Try several
     possible ways to get the date; if none works, just guess based on filename.
     """
+    assert isinstance(which_file, str)      # FIXME! We should be taking and returning Paths!
+
     try:
         try:
             with open(which_file, 'rb') as f:
@@ -179,10 +199,13 @@ def name_from_date(which_file):
     return '%s-%s-%s_%s_%s_%s%s' % (dt[0:4], dt[4:6], dt[6:8], dt[8:10], dt[10:12], dt[12:14], os.path.splitext(which_file)[1].lower())
 
 
-def find_alt_version(orig_name, alternate_extensions):
+def find_alt_version(orig_name: Union[str, Path],                                       # FIXME! require Path
+                     alternate_extensions: Sequence[str]) -> Union[str, None]:          # FIXME! return Path
     """Check to see if there is an alternate version of this file (e.g., a raw file
-    corresponding to a JPEG). This logic depends entirely on equivalent filenames
-    with differing extensions. If so, return its name; otherwise, return None.
+    corresponding to a JPEG). This logic depends entirely on "alternate versions"
+    having identical filenames with differing extensions.
+
+    If an "alternate version" exists, return its name; otherwise, return None.
 
     ALTERNATE_EXTENSIONS is a list (or tuple) of other extensions to check for.
     This list (or tuple, or set, or ...) is checked in order, and the first file
@@ -191,55 +214,62 @@ def find_alt_version(orig_name, alternate_extensions):
     choose the "best" version, except insofar as the earliest extension listed is
     assumed to belong to the "best" file.
     """
+    if not isinstance(orig_name, str): orig_name = str(orig_name)                       # FIXME! require Path
+
     for whichext in alternate_extensions:
         altfile = os.path.splitext(orig_name)[0] + '.' + whichext
         if os.path.exists(altfile):
             return altfile
+
     return None                 # If we didn't find one ...
 
 
-def list_of_raws():
-    """Get a list of all raw files in the current directory."""
+def list_of_raws() -> Sequence[Path]:
+    """Get a list of all raw files in the current directory.
+    """
     all_raws = [][:]
     for which_ext in raw_photo_extensions:
-        all_raws += glob.glob("*%s" % which_ext)
-    return [f for f in sorted(list(set(all_raws)))]
-
-
-"""
-The following class maintains a list of mappings:
-    "original file name" -> "current file name".
-
-Note that there is no claim made to maintain intermediate names the file may
-have had. The intent is to make it possible to restore the original name of a
-set of files after a series of filename changes. Doing this requires that all
-filename changes are manually mapped through the routines in this class. I
-find this helpful in my photo-postprocessing scripts because I want to be able
-to restore the files' original names if necessary.
-"""
+        all_raws += Path().glob(f"*{which_ext}")
+    return sorted(set(all_raws))
 
 
 class FilenameMapper(object):
-    """Maintains a mapping of old-to-new filenames."""
-    def __init__(self, mapping=None, filename=None):
-        """Set up the mapping names. MAPPING is a dict, in which
-        mapping[oldname]=newname. FILENAME should be the path to a closed file
-        in .csv format.
+    """
+    Maintains a list of old-filename-to-new-filename mappings:
+        "original file name" -> "current file name".
+
+    Note that there is no claim made to maintain intermediate names the file may
+    have had. The intent is to make it possible to restore the original name of a
+    set of files after a series of filename changes. Doing this requires that all
+    filename changes are manually mapped through the routines in this class. I
+    find this helpful in my photo-postprocessing scripts because I want to be able
+    to restore the files' original names if necessary.
+    """
+    def __init__(self, mapping: Optional[Mapping] = None,
+                 filename: Optional[Union[str, Path]] = None):           # FIXME! use Path
+        """Set up the mapping names. MAPPING maps oldname -> newname.
+
+        FILENAME should be the path to a closed file in .csv format. It is not
+        read, even if it already exists; it simply becomes the name of the file
+        that WILL BE used to store the mapping data.
         """
+        if filename: assert isinstance(filename, str)   # FIXME! use Path
         if mapping:
+            assert isinstance(mapping, Mapping), "ERROR! a mapping used to initialize a FilenameMapper must be a proper mapping!"
             self.mapping = mapping
         else:
             self.mapping = {}.copy()
+
         self.filename = filename
 
     def __repr__(self):
         """Return a printable representation."""
         ret = "< FilenameMapper object (mapping %d files) " % len(self.mapping)
-        ret += "(stored in %s) " % shlex.quote(self.filename) if self.filename else "(not tied to a file) "
+        ret += "(stored in %s) " % shlex.quote(str(self.filename)) if self.filename else "(not tied to a file) "
         ret += ">"
         return ret
 
-    def read_mappings(self, filename):
+    def read_mappings(self, mappings_filename: Union[str, Path]):
         """Read mapping dictionary back into memory. Do this before restoring
         original file names, or before doing other things that require a set of
         filename mappings to be in memory.
@@ -254,21 +284,27 @@ class FilenameMapper(object):
         This procedure also registers FILENAME as the filename associated with the
         .csv file used to maintain the object's data.
         """
+        assert isinstance(mappings_filename, (str, Path))   # FIXME! Use Path!
+
         try:
-            with open(filename, newline='') as infile:
+            with open(mappings_filename, newline='') as infile:
                 reader = csv.reader(infile)
                 reader.__next__()                                                   # Skip the header row.
                 for key, value in {rows[0]:rows[1] for rows in reader}.items():
                     self.add_mapping(key, value)
         except FileNotFoundError:
             pass                    # Oh well, no mappings file found to read from.
-        self.filename = filename
+        self.filename = mappings_filename
 
-    def add_mapping(self, orig_name, new_name):
+    def add_mapping(self, orig_name: Union[str, Path],
+                    new_name: Union[str, Path]):
         """Maps ORIG_NAME to NEW_NAME, i.e. creates a note that NEW_NAME was once
         called ORIG_NAME. This procedure does not do the renaming itself, and does
         not write the changes to disk.
         """
+        if not isinstance(orig_name, str): orig_name = str(orig_name)       # FIXME! Use Path!
+        if not isinstance(new_name, str): new_name = str(new_name)          # FIXME! Use Path!
+
         if orig_name in self.mapping.values():
             for i in self.mapping:                  # If that appears anywhere in the dict as a name resulting from a rename  ...
                 if self.mapping[i] == orig_name:    # ... go through the dict, looking for things that point to it ...
@@ -276,8 +312,13 @@ class FilenameMapper(object):
         else:
             self.mapping[orig_name] = new_name
 
-    def rename_and_map(self, orig_name, new_name):
-        """Rename a file and keep track of the mapping from old to new names."""
+    def rename_and_map(self, orig_name: Union[str, Path],
+                       new_name: Union[str, Path]):
+        """Rename a file and keep track of the mapping from old to new names.
+        """
+        if not isinstance(orig_name, str): orig_name = str(orig_name)       # FIXME! Use Path!
+        if not isinstance(new_name, str): new_name = str(new_name)          # FIXME! Use Path!
+
         os.rename(orig_name, new_name)
         self.add_mapping(orig_name, new_name)
 
@@ -289,7 +330,7 @@ class FilenameMapper(object):
             writer.writerows(self.mapping.items())
 
 
-
 if __name__ == "__main__":
-    print("file_utils.py is not a program; it's a library of code to be used by other\nprograms. You can't usefully use it directly from the terminal.")
+    print("file_utils.py is not a program; it's a library of code to be used by other")
+    print("programs. You can't usefully use it directly from the terminal.")
     sys.exit(1)

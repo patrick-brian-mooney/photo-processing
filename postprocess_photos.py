@@ -7,7 +7,7 @@ cameras. It processes an entire directory at a time; just invoke it either
 while the directory that needs to be processed is the current working
 directory, or specifying the directory to process at the end of the command.
 
-This script requires Python 3.5+ and that a series of external programs be
+This script requires Python 3.6+ and that a series of external programs be
 installed; read on for details. It does not currently, and probably never will,
 run under any version of Windows, but it should run under most or all Unix-like
 operating systems, including Linux and macOS, with minimal adjustment needed.
@@ -74,7 +74,7 @@ interrupted, for instance.
 
 This program is part of Patrick Mooney's photo postprocessing scripts; the
 complete set can be found at https://github.com/patrick-brian-mooney/photo-processing.
-All programs in that collection are copyright 2015-2019 by Patrick Mooney; they
+All programs in that collection are copyright 2015-2025 by Patrick Mooney; they
 are free software released under the GNU GPL, either version 3 or (at your
 option) any later version. See the file LICENSE.md for details.
 
@@ -86,15 +86,18 @@ The latest version of these scripts can always be found at
 import argparse
 import datetime
 import fnmatch
+import functools
 import glob
 import os
-import pprint
 import re
 import shlex
 import shutil
 import subprocess
 import sys
 import time
+
+from pathlib import Path
+from typing import Sequence, Union
 
 from PIL import Image                   # [sudo] pip[3] install Pillow; https://python-pillow.org/
 
@@ -109,7 +112,7 @@ photo_config.startup()                        # Check that the system meets mini
 debugging = True
 raw_must_be_paired_with_JPEG = False    # If True, delete raw photos that don't have a pre-existing JPEG counterpart
 delete_small_raws = True                # Delete raw photos that are paired with small JPEGs.
-maximum_short_side_length = 5000        # If the longest side of an image is at least this long, it's not a "small image."
+maximum_short_side_length = 5000        # If an image's longest side is at least this long, it's not a "small image."
 
 file_name_mappings = fu.FilenameMapper(filename='file_names.csv')      # Maps original names to new names.
 
@@ -169,7 +172,14 @@ def print_usage():
     print(__doc__)
 
 
-def adjust_timestamps(file_list, yr=0, mo=0, days=0, hr=0, m=0, sec=0, rename=True):
+def adjust_timestamps(file_list: Sequence[Path],
+                      yr: int = 0,
+                      mo: int = 0,
+                      days: int = 0,
+                      hr: int = 0,
+                      m: int = 0,
+                      sec: Union[int, float] = 0,
+                      rename: bool = True) -> None:
     """Calls exiftool to adjust the timestamps of all files in FILE_LIST by the
     indicated amount. If any component of the date is negative, then the amount of
     time represented is subtracted from the current time for each file; otherwise,
@@ -180,16 +190,27 @@ def adjust_timestamps(file_list, yr=0, mo=0, days=0, hr=0, m=0, sec=0, rename=Tr
 
     Assumes all files in FILE_LIST are in the same directory.
     """
-    if not (yr or mo or days or hr or m or sec):            # If nothing is truthy, we don't have any work to do. So don't do any work.
+    # FIXME! We should also be doing this for sidecars/alternate versions!
+
+    assert isinstance(file_list, Sequence)
+    assert file_list, "ERROR! No files passed to adjust_timestamps!"
+    assert all([isinstance(f, Path) for f in file_list]), "ERROR! All files passed to adjust_timestamps must be Paths"
+
+    if not all([file_list[0].parent.samefile(f.parent) for f in file_list]):
+        raise ValueError("ERROR! Every file passed to adjust_timestamps must be in the same directory!")
+
+    if not (yr or mo or days or hr or m or sec):
         print("No timeshift specified! Quitting ...")
         return
-    old_dir = os.getcwd()
+
+    old_dir = Path.cwd()
     try:
-        if os.path.dirname(file_list[0]):
-            os.chdir(os.path.dirname(file_list[0]))
+        os.chdir(file_list[0].parent)
         sign = "-" if [i for i in [yr, mo, days, hr, m, sec] if i < 0] else "+"
-        f_date = "%s:%s:%s %s:%s:%s" % (abs(yr), abs(mo), abs(days), abs(hr), abs(m), abs(sec))
-        subprocess.call([photo_config.executable_location('exiftool'), '-m', '-AllDates%s=%s' % (sign, f_date), '-FileModifyDate%s=%s' % (sign, f_date), '-overwrite_original'] + file_list)
+        f_date = f"{abs(yr)}:{abs(mo)}:{abs(days)} {abs(hr)}:{abs(m)}:{abs(sec)}"
+        subprocess.call([photo_config.executable_location('exiftool'), '-m', f'-AllDates{sign}={f_date}',
+                         f'-FileModifyDate{sign}={f_date}', '-overwrite_original'] + [str(f) for f in file_list])
+
         if rename:
             mappings = fu.FilenameMapper()
             mappings.read_mappings('file_names.csv')
@@ -201,10 +222,15 @@ def adjust_timestamps(file_list, yr=0, mo=0, days=0, hr=0, m=0, sec=0, rename=Tr
         os.chdir(old_dir)
 
 
-def set_timestamps(file_list, yr, mo, days, hr, m, sec=0):
+def set_timestamps(file_list: Sequence[Path],
+                   yr: int,
+                   mo: int,
+                   days: int,
+                   hr: int,
+                   m: int,
+                   sec: Union[int, float]=0):
     """Calls exiftran to set the EXIF timestamps of all files in FILE_LIST to the
-    indicated date and time. Why multiple files might have the same timestamp, I
-    don't know; but it's possible to do so.
+    indicated date and time.
 
     This function, unlike its similarly-named counterpart above, does not rename
     files after giving them an EXIF timestamp, because my own postprocessing
@@ -212,38 +238,41 @@ def set_timestamps(file_list, yr, mo, days, hr, m, sec=0):
     place: scanned negatives, primarily. In any case, these files that come without
     ANY date already embedded tend to be named according to criteria other than
     embedded datetimes: primarily, these numbers are based on film roll ID# and the
-    sequential number of the negative on the rule..
+    sequential number of the negative on the roll.
 
     Assumes all files in FILE_LIST are in the same directory.
     """
-    assert isinstance(file_list, (list, tuple)), "ERROR: set_timestamps() was not passed a LIST OF FILES as FILE_LIST!"
-    for f in file_list:
-        assert os.path.dirname(f) == os.path.dirname(file_list[0]), "ERROR: all files passed to set_timestamps() must be in the same directory!"
+    assert isinstance(file_list, Sequence), "ERROR: set_timestamps() was not passed a LIST OF FILES as FILE_LIST!"
+    assert file_list, "ERROR! Must pass at least one file to set_timestamps!"
+
+    assert all([isinstance(f, Path) for f in file_list]), "ERROR! Every file passed to set_timestamps must be a Path!"
+    assert all([file_list[0].parent.samefile(f.parent) for f in file_list]), \
+        "ERROR: all files passed to set_timestamps() must be in the same directory!"
 
     old_dir = os.getcwd()
     try:
-        if os.path.dirname(file_list[0]):
-            os.chdir(os.path.dirname(file_list[0]))
-        f_date = "%s:%s:%s %s:%s:%s" % (yr, mo, days, hr, m, sec)
-        subprocess.call([photo_config.executable_location('exiftool'), '-m', '-AllDates=%s' % f_date, '-FileModifyDate=%s' % f_date, '-overwrite_original'] + file_list)
+        os.chdir(file_list[0].parent)
+        f_date = f"{yr}:{mo}:{days} {hr}:{m}:{sec}"
+        subprocess.call([photo_config.executable_location('exiftool'), '-m', f'-AllDates={f_date}',
+                         f'-FileModifyDate={f_date}', '-overwrite_original'] + [str(f) for f in file_list])
     finally:
         os.chdir(old_dir)
 
 
 def _increment_timestamp(file_list):
     """Add one hour to the timestamp for each file in FILE_LIST."""
-    assert isinstance(file_list, (list, tuple))
+    assert isinstance(file_list, Sequence)
     adjust_timestamps(file_list, hr=1)
 
 
 def _decrement_timestamp(file_list):
     """Subtract one hour from the timestamp for each file in FILE_LIST."""
-    assert isinstance(file_list, (list, tuple))
+    assert isinstance(file_list, Sequence)
     adjust_timestamps(file_list, hr=-1)
 
 
 def spring_forward():
-    """Adjust the EXIF timestamps on the batch of photos in this directory by
+    """Adjust the EXIF timestamps on the batch of photos in the current directory by
     adding one hour to them, as if I had forgotten to do this after the DST
     change. This function is NEVER called directly by the code itself and is not
     available from the command line; it's a utility function available from the
@@ -277,17 +306,16 @@ def empty_thumbnails():
     """
     print("Keeping directory's .thumbnails subdirectory empty ... ", end='')
     try:
-        if os.path.exists('.thumbnails'):
-            if os.path.isdir('.thumbnails'):
-                shutil.rmtree('.thumbnails')
+        if Path('.thumbnails').exists():
+            if Path('.thumbnails').is_dir():
+                shutil.rmtree(Path('.thumbnails'))
             else:
-                os.unlink('.thumbnails')
+                Path('.thumbnails').unlink()
         # OK, now create the directory and make it writable for no one
-        os.mkdir('.thumbnails')
-        os.chmod('.thumbnails', 0o555)
+        Path('.thumbnails').mkdir(mode=0o555)
     except:
         print('\n')     # If an error occurs, end the status line that's waiting to be ended ...
-        raise           #  then let the error propagate.
+        raise           # then let the error propagate.
     print(' ... done.\n\n')
 
 
@@ -327,8 +355,8 @@ def delete_spurious_raw_files():
     if raw_must_be_paired_with_JPEG:
         orphan_raws = [f for f in fu.list_of_raws() if not fu.find_alt_version(f, fu.jpeg_extensions)]
         for which_raw in orphan_raws:
-            print("Raw file '%s' has no corresponding JPEG; deleting ..." % which_raw)
-            os.remove(which_raw)
+            print(f"Raw file '{which_raw}' has no corresponding JPEG; deleting ...")
+            which_raw.unlink()
     # Now, delete any raw files whose corresponding JPEG is "small."
     if delete_small_raws:
         for which_raw in fu.list_of_raws():
@@ -336,10 +364,10 @@ def delete_spurious_raw_files():
             if corresponding_jpg:
                 im = Image.open(corresponding_jpg)
                 if max(im.size) < maximum_short_side_length:
-                    print("Raw file '%s' has low-resolution corresponding JPEG; deleting ..." % which_raw)
-                    os.remove(which_raw)
+                    print(f"Raw file '{which_raw}' has low-resolution corresponding JPEG; deleting ...")
+                    which_raw.unlink()
             else:                       # We SHOULD have already covered this ...
-                os.remove(which_raw)        # ... but just for the sake of being perfectly sure ...
+                which_raw.unlink()          # ... but just for the sake of being perfectly sure ...
 
 
 def rename_photos():
@@ -357,39 +385,41 @@ def rename_photos():
     print('Renaming photos (based on EXIF data, where possible) ... ')
     try:
         # First, get a list of all relevant files and (as best we can determine) when they were shot.
-        file_list, which_files = [][:], [][:]
-        renameable_extensions = (fu.raw_photo_extensions + fu.jpeg_extensions +fu.other_image_extensions + fu.movie_extensions + fu.audio_extensions)
-        for which_ext in renameable_extensions:
-            which_files += glob.glob('*' + which_ext)
-        for i, which_image in enumerate(sorted(list(set(which_files)))):
-            new_name = fu.name_from_date(which_image)
-            file_list.append([new_name, which_image])
+        renameable_extensions = set(fu.raw_photo_extensions + fu.jpeg_extensions + fu.other_image_extensions +
+                                    fu.movie_extensions + fu.audio_extensions)
+
+        file_list = [][:]
+        which_files = {f for f in Path().glob('*') if f.suffix in renameable_extensions}
+        file_list = [[fu.name_from_date(str(which_image)), which_image] for which_image in which_files]
 
         # OK, now sort that list (twice). First, sort by original filename (globbing filenames does not preserve
         # order). Then, sort again by datetime string. Since Python sorts are stable, the second sort will preserve
         # the order of the first when values for the sort-by key for the second sort are identical.
-        file_list.sort(key=lambda item: item[1])
-        file_list.sort(key=lambda item: item[0])
+        file_list.sort(key=lambda item: str(item[1]))
+        file_list.sort(key=lambda item: str(item[0]))
 
         # Finally, actually rename the files, keeping a dictionary that maps the original to the new names.
         try:
             while len(file_list) > 0:
                 which_file = file_list.pop(0)
-                new_name = fu.find_unique_name(fu.name_from_date(which_file[1])).strip()
-                if new_name != which_file[1]:
+                new_name = fu.find_unique_name(Path(fu.name_from_date(str(which_file[1]))))     # FIXME: type wrangling!
+                if not new_name.samefile(which_file[1]):
                     file_name_mappings.rename_and_map(which_file[1], new_name)
-                    raw_version = fu.find_alt_version(which_file[1], fu.raw_photo_extensions)
+                    raw_version = Path(fu.find_alt_version(which_file[1], fu.raw_photo_extensions)) #FIXME! will eventually just return Path!
                     if raw_version:
-                        new_raw = os.path.splitext(new_name)[0] + os.path.splitext(raw_version)[1]
+                        new_raw = new_name.with_suffix(raw_version.suffix)
                         file_name_mappings.rename_and_map(raw_version, new_raw)
                     json_version = fu.find_alt_version(which_file[1], fu.json_extensions)
                     if json_version:
-                        file_name_mappings.rename_and_map(json_version, os.path.splitext(new_name)[0] + '.json')
+                        file_name_mappings.rename_and_map(json_version, new_name.with_suffix('.json'))
+
         finally:
             file_name_mappings.write_mappings()     # Write what we've got, no matter what.
-    except:
+
+    except BaseException as errrr:
         print('\n')     # If an error occurs, end the status line in progress before letting the error propagate.
-        raise
+        raise errrr
+
     print('     ... done.\n\n')
 
 
@@ -445,76 +475,93 @@ def process_shell_scripts():
 
     #FIXME: this docstring needs a rewrite.
     """
+    @functools.lru_cache
+    def cmp(f: Path) -> str:
+        """Convenience function to produce a case-insensitive stringified version of
+         a Path's name.
+        """
+        return str(f).casefold()
+
     print('\nRewriting enfuse HDR scripts ... ')
     try:
-        for which_script in [s for s in glob.glob('*') if re.match(fnmatch.translate('HDR*SH'), s, re.IGNORECASE)]:
-            print('    Rewriting %s' % which_script)
+        all_scripts = [s for s in Path().glob('*') if cmp(s).startswith('hdr') and cmp(s).endswith('.sh')]
+        for which_script in all_scripts:
+            print(f'    Rewriting {which_script}')
             old_perms = os.stat(which_script).st_mode
-            with open(which_script, 'r') as the_script:
+            with open(which_script, 'rt') as the_script:
                 script_lines = the_script.readlines()
-                if script_lines[4].startswith('align_image_stack'):         # It's an align-first script, with 8 lines, 5 non-blank.
-                    # Getting the script filenames takes some processing time here. It assumes a familiarity with the format of this
-                    # line in ML firmware version 1.0.2-ml-v2.3, which currently looks like this:
-                    #
+                if script_lines[4].startswith('align_image_stack'):
+                    # It's an align-first script, with 8 lines, 5 non-blank.
+                    # Getting the script filenames takes some processing time here. It assumes a familiarity with
+                    # the format of this line in ML firmware version 1.0.2-ml-v2.3, which currently looks like this:
                     #    align_image_stack -m -a OUTPUT_PREFIX INFILE1.JPG INFILE2.JPG [...]
 
-                    # The number of infiles depends, of course, on settings that were in effect when the sequence was taken.
-                    #
-                    # So, the align_line, when tokenized, is, by array index:
+                    # The number of infiles depends, of course, on settings that were in effect when the sequence
+                    # was taken. So, the align_line, when tokenized, is, by array index:
                     #   [0] executable name
                     #   [1] -m, a switch meaning "optimize field of view for all images except for the first."
-                    #   [2 and 3] -a OUTPUT_PREFIX specifies the prefix for all of the output files.
+                    #   [2 and 3] -a OUTPUT_PREFIX specifies the prefix for all output files.
                     #   [4 to end] the names of the input files.
-                    HDR_input_files = [file_name_mappings.mapping[which_file] if which_file in file_name_mappings.mapping
-                                       else which_file
-                                       for which_file in script_lines[4].split()[4:] ]
-                else:                                       # It's a just-call-enfuse script, with 6 lines, 3 non-blank.
-                    new_script = script_lines[:-1]          # Tokenize and get the names of the input files.
-                    last_line_tokens = script_lines[-1].split()
-                    HDR_input_files = [file_name_mappings.mapping[which_file] if which_file in file_name_mappings.mapping
-                                       else which_file
-                                       for which_file in last_line_tokens[3:]]
-            hdr.create_script_from_file_list(HDR_input_files, file_to_move=which_script)
-    except:
+                    hdr_input_files = [file_name_mappings.mapping[f] if f in file_name_mappings.mapping
+                                       else f
+                                       for f in script_lines[4].split()[4:] ]
+
+                else:                                   # It's a just-call-enfuse script, with 6 lines, 3 non-blank.
+                    last_line_tokens = script_lines[-1].split()     # Get the names of the input files.
+                    hdr_input_files = [file_name_mappings.mapping[f] if f in file_name_mappings.mapping
+                                       else f
+                                       for f in last_line_tokens[3:]]
+
+            hdr.create_script_from_file_list(hdr_input_files, file_to_move=which_script)
+
+    except BaseException as errrr:
         print()     # If an error occurs, end the line that's waiting to be ended before letting the error propagate.
-        raise
+        raise errrr
+
     print('\n ... done rewriting enfuse scripts.\n')
 
 
 def run_shell_scripts():
-    """Run the executable shell scripts in the current directory. Make them non-
-    executable after they have been run.
+    """Run the executable shell scripts in the current directory, then make them
+    non-executable after they have been run.
 
     This routine DOES NOT REQUIRE that filename mappings have been read into
     memory; it just runs all the executable shell scripts in the current
     directory.
     """
     try:
-        os.mkdir('HDR_components')
+        Path('HDR_components').mkdir()
         print("\nHDR_components/ directory created.")
-    except FileExistsError: pass                                            # target directory already exists? Cool!
-    print("Running executable scripts in %s ..." % os.getcwd())
-    file_list = sorted([which_script for which_script in glob.glob("*SH") if os.access(which_script, os.X_OK)])
+    except FileExistsError:
+        pass                                            # target directory already exists? Cool!
+
+    file_list = sorted([f for f in Path().glob("*") if (str(f).casefold().endswith('.sh') and os.access(f, os.X_OK))])
+    if not file_list:
+        print(f'No scripts to run in director {Path().resolve()} ...')
+        return
+
+    print(f"Running {len(file_list)} executable scripts{'s' if (len(file_list) > 1) else ''} in {os.getcwd()} ...")
     for which_script in file_list:
-        print('\n\n    Running script: %s' % which_script)
-        subprocess.call([os.path.abspath(which_script)])
-        os.system('chmod a-x -R %s' % shlex.quote(which_script))
+        print(f'\n\n    Running script: {which_script}')
+        subprocess.call([str(which_script.resolve())])
+        os.system(f'chmod a-x -R {shlex.quote(str(which_script))}')
+
     print("\n\n ... done running scripts.")
 
 
-def create_HDRs_from_raws():
-    """For every raw file, create a tonemap from it, creating an intermediate
-    Bash script along the way, which it runs in order to create the tonemap.
+def create_hdrs_from_raws():
+    """Create a tonemap from every raw file in the current directory by creating and
+    running an intermediate Bash script. Created scripts remain after this file .
 
     This routine DOES NOT REQUIRE that filename mappings have been read into
-    memory; it just operates on all of the identifiable raw photos in the current
+    memory; it just operates on all the identifiable raw photos in the current
     directory.
     """
     the_raws = sorted(fu.list_of_raws())
     if the_raws:
-        print("\nCreating HDR JPEGs (and intermediate scripts) from %d raw files ...\n\n" % len(the_raws))
+        print(f"\nCreating HDR JPEGs (and intermediate scripts) from {len(the_raws)} raw files ...\n\n")
         for i, which_raw in enumerate(the_raws):
-            hfr.HDR_tonemap_from_raw(which_raw)
+            hfr.hdr_tonemap_from_raw(which_raw)
     else:
         print("\nNo raw photos detected, moving on ...")
 
@@ -522,7 +569,7 @@ def create_HDRs_from_raws():
 def hang_around():
     """Offers to hang around, watching for executable shell scripts in the
     directory and running them if they appear. This might be handy if, for
-    instance, all of the shell scripts had been accidentally deleted: this
+    instance, all the shell scripts had been accidentally deleted: this
     script can be left running while the files in the directory are manually
     examined and new shell scripts are created (perhaps by running
     create_HDR_script.py). Note that this will have to be interrupted with Ctrl+C;
@@ -533,10 +580,11 @@ def hang_around():
     directory.
     """
     while True:
-        print('Looking for executable shell scripts at %s...' % (datetime.datetime.now().isoformat()))
-        file_list = [which_script for which_script in glob.glob("*SH") if os.access(which_script, os.X_OK, effective_ids=True)]
-        if len(file_list) > 0:
-            print('Found %d script(s); executing ...' % len(file_list))
+        print(f"  (Current directory is {os.getcwd()})")
+        print(f'Looking for executable shell scripts at {datetime.datetime.now().isoformat()} ...')
+        file_list = [f for f in Path().glob("*SH") if (str(f).casefold().endswith('.sh') and os.access(f, os.X_OK))]
+        if file_list:
+            print(f'Found {len(file_list)} script{'s' if (len(file_list) > 1) else ''}; executing ...')
             run_shell_scripts()
         else:
             time.sleep(30)
@@ -597,18 +645,18 @@ option) any later version. See the file LICENSE.md for details.
                         action='store_true', help="delete raw files not associated with a JPEG")
     parser.add_argument('-r', '--rename', '--rename-photos', '--rename_photos', action='store_true',
                         help="rename all photos based on their EXIF date and time")
-    parser.add_argument('-c', '--create', '--create-HDRs-from-raws', '--create_HDRs_from_raws', action='store_true',
-                        help="create HDR scripts for all raw files, then run those scripts")
+    parser.add_argument('-c', '--create', '--create-HDRs-from-raws', '--create_HDRs_from_raws',
+                        action='store_true', help="create HDR scripts for all raw files, then run those scripts")
     parser.add_argument('-t', '--rotate', '--rotate-photos', '--rotate_photos', action='store_true',
                         help="rotate all photos in the directory to their default EXIF orientation")
-    parser.add_argument('-p', '--process', '--process-shell-scripts', '--process_shell_scripts', action='store_true',
-                        help="rewrite Magic Lantern scripts in the directory")
+    parser.add_argument('-p', '--process', '--process-shell-scripts', '--process_shell_scripts',
+                        action='store_true', help="rewrite Magic Lantern scripts in the directory")
     parser.add_argument('-u', '--run', '--run-shell-scripts', '--run_shell_scripts', action='store_true',
                         help="run all executable shell scripts in the directory")
     parser.add_argument('-y', '--python-help', '--python_help', action='store_true',
                         help="run all executable shell scripts in the directory")
-    parser.add_argument(dest="directory", nargs='?', default=os.getcwd(),
-                        help = "image directory to process")
+    parser.add_argument(dest="directory", nargs='?', default=Path('.'), type=Path,
+                        help = "directory containing images to process")
     args = vars(parser.parse_args())            # Now we have a dictionary of command-line arguments
 
     if args['python_help']:
@@ -617,30 +665,33 @@ option) any later version. See the file LICENSE.md for details.
 
     # Massage the list of actions to perform: If NO actions are specified, do EVERYTHING.
     actions = ['create', 'delete', 'empty', 'process', 'rename', 'rotate', 'run']
-    if not True in {a: args[a] for a in actions}.values():
+    if all([not args[a] for a in actions]):
         for a in actions:
             args[a] = True
 
-    if not os.path.isdir(args['directory']):
-        print("ERROR! %s is not a directory." % args['directory'])
-    elif args['directory'] != os.getcwd():
+    if not args['directory'].is_dir():
+        print(f"ERROR! {args['directory']} is not a directory.")
+    elif not args['directory'].samefile(Path('.')):
         os.chdir(args['directory'])
 
     try:        # Read existing filename mappings if there are any, and if they're readable.
-        file_name_mappings.read_mappings('file_names.csv')
-    except OSError:
+        file_name_mappings.read_mappings(Path('file_names.csv'))
+    except FileNotFoundError:
         pass
+    except OSError as errrr:
+        print(f"Unable to read file_names.csv! The system said: {errrr}")
 
     # OK, let's do the things that we actually need to do.
     if args['empty']: empty_thumbnails()
     if args['delete']: delete_spurious_raw_files()
     if args['rename']: rename_photos()
-    if args['create']: create_HDRs_from_raws()
+    if args['create']: create_hdrs_from_raws()
     if args['rotate']: rotate_photos()
     if args['process']: process_shell_scripts()
     if args['run']: run_shell_scripts()
 
-    if input("Want me to hang around and run scripts that show up? (Say NO if unsure.) --|  ").strip().lower()[0] == "y":
+    prompt = "Want me to hang around and run scripts that show up? (Say NO if unsure.) --|  "
+    if input(prompt).strip().casefold()[0].startswith("y"):
         print('\n\nOK, hit ctrl-C when finished.\n')
         hang_around()                                      # We're done!
 
