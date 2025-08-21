@@ -38,9 +38,6 @@ shifts = range(-5, 6)       # Range of Ev adjustments. This is probably the maxi
 clipping_threshold = 32     # If >= half the image's data is within this distance of the relevant edge, we'll consider it clipped.
 
 
-force_debug = False
-
-
 def massage_file_list(selected_files):
     """Massages the values in SELECTED_FILES, which is a dictionary mapping EVs to
     True/False values indicating whether they will or will not be used in the
@@ -190,9 +187,14 @@ def HDR_tonemap_from_raw(rawfile):
         print(f"Unable to create HDR tonemap from {rawfile}! The system said: {errrr}.")
 
 
+force_debug = False
+
+
 if __name__ == "__main__":
     if force_debug:
-        pass            # Any debugging-harness commands go here.
+        # Any debugging-harness commands go here.
+        # HDR_tonemap_from_raw("/home/patrick/Photos/film/by roll number/1485/1485-01.dng")
+        pass
     if len(sys.argv) == 1 or sys.argv[1] in ['--help', '-h']:
         print(__doc__)
         sys.exit(0)
