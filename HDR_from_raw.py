@@ -24,7 +24,7 @@ import sys
 import time
 
 from pathlib import Path
-from typing import Sequence, Union
+from typing import List, Sequence, Union
 
 
 from PIL import Image               # [sudo] pip[3] install Pillow; https://python-pillow.org/
@@ -46,7 +46,7 @@ shifts = range(-5, 6)       # Range of Ev adjustments: probably the maximum plau
 clipping_threshold = 32     # If >= half image data this close to the relevant edge, we consider it clipped.
 
 
-def massage_file_list(selected_files: Sequence):
+def massage_file_list(selected_files: Sequence[Path]) -> Sequence[Path]:
     """Massages the values in SELECTED_FILES, which is a dictionary mapping EVs to
     True/False values indicating whether they will or will not be used in the
     final image. This procedure is the last chance to tweak those use/do not use
@@ -54,7 +54,10 @@ def massage_file_list(selected_files: Sequence):
 
     This routine has done more in the past and may do more in the future.
     """
-    assert len(selected_files) > 0, "ERROR: Unable to create any viable files from raw photo"
+    assert isinstance(selected_files, Sequence)
+    assert selected_files, "ERROR: No files created to use in tonemapping raw photo!"
+    assert all([isinstance(f, Path) for f in selected_files]), "ERROR! All files passed must be Paths!"
+
     return selected_files
 
 
@@ -75,7 +78,7 @@ def produce_shifted_tonemap(raw_file: Path,
     return outfile
 
 
-def get_smoothed_image_histogram(image_filename):
+def get_smoothed_image_histogram(image_filename: Path) -> List[int]:
     """Get an image brightness histogram for IMAGE_FILENAME, and then do some smoothing
     on the data so that the calling function can avoid being distracted by noise in
     the data. "Smoothing" here means "low values are dropped to zero."
@@ -85,13 +88,16 @@ def get_smoothed_image_histogram(image_filename):
     swapping zeroes in for small values, the sum of the smoothed histogram values
     will often be noticeably smaller than the number of pixels in the source image.
     """
+    assert isinstance(image_filename, Path), "ERROR! IMAGE_FILENAME must be a Path!"
+
     h = Image.open(image_filename).convert('L').histogram()
-    minimum_threshold = (sum(h) / len(h)) - 2 * statistics.stdev(h) # threshold is 2 standard deviations below the average
-    h = [ v if v > minimum_threshold else 0 for v in h ]            # Anything below threshold is dropped to zero
+    minimum_threshold = (sum(h) / len(h)) - 2 * statistics.stdev(h)     # threshold: 2 std devs below the average
+    h = [ v if v > minimum_threshold else 0 for v in h ]                # Anything below threshold is dropped to zero
+
     return h
 
 
-def is_right_edge_clipping(histo):
+def is_right_edge_clipping(histo: List[int]) -> bool:
     """Returns True if the histogram HISTO is clipped at the right edge, or False
     otherwise. We treat a False from this function as a criterion for detecting
     whether we've found the darkest image to include in the tonemap.
@@ -101,7 +107,7 @@ def is_right_edge_clipping(histo):
     return sum(histo[(256-clipping_threshold):]) >= sum(histo[:(256-clipping_threshold)])
 
 
-def is_left_edge_clipping(histo):
+def is_left_edge_clipping(histo: List[int]) -> bool:
     """Returns True if the histogram HISTO is clipped at the left edge, or False
     otherwise. We treat a False from this function as a criterion for detecting
     when we've found the darkest image to include in the tonemap.
@@ -115,7 +121,7 @@ def is_left_edge_clipping(histo):
     return sum(histo[:clipping_threshold]) >= sum(histo[clipping_threshold:])
 
 
-def no_lower_quarter_data(histo):
+def no_lower_quarter_data(histo: List[int]) -> bool:
     """Detect whether all the data in a (smoothed, presumably) brightness
     histogram is in the upper three-quarters of the brightness graph. We treat
     this as a factor in determining when we've found the brightest necessary
@@ -124,12 +130,12 @@ def no_lower_quarter_data(histo):
     return sum(histo[:63]) == 0
 
 
-def create_HDR_script(raw_file: Path) -> Union[Path, None]:
+def create_hdr_script(raw_file: Path) -> Union[Path, None]:
     """Create a series of EV-shifted versions of RAW_FILE, then produce a script that
     will tonemap them. RAW_FILE is the pathname to the raw file. Returns the filename
     of the script that it created.
     """
-    assert isinstance(raw_file, Path), "ERROR! Files passed to create_HDR_script must be Paths!"
+    assert isinstance(raw_file, Path), "ERROR! Files passed to create_hdr_script must be Paths!"
     assert raw_file.exists(), "ERROR! Cannot produce an HDR script for a file that does not exist!"
     assert raw_file.suffix in fu.raw_photo_extensions, f"ERROR! {raw_file.suffix} is not a recognized raw file type!"
 
@@ -189,23 +195,24 @@ def create_HDR_script(raw_file: Path) -> Union[Path, None]:
             files_to_merge.sort()
             base_tiff = files_to_merge[0]
         new_script = chs.create_script_from_file_list(files_to_merge, delete_originals=True, suppress_align=True,
-                                                      metadata_source_file=fu.find_alt_version(raw_file,
-                                                                                               fu.jpeg_extensions))
+                                                      metadata_source=fu.find_alt_version(raw_file,
+                                                                                          fu.jpeg_extensions))
         return Path(new_script).resolve()
 
     except BaseException as e:
-        log_it(f"ERROR: create_HDR_script() got error {e} while trying to create a script for {raw_file}.")
+        log_it(f"ERROR: create_hdr_script() got error {e} while trying to create a script for {raw_file}.")
         return None
 
     finally:
         os.chdir(old_dir)
 
 
-def hdr_tonemap_from_raw(raw_file: Path):
-    """Write an HDR-creation script for RAW_FILE, then run it."""
+def hdr_tonemap_from_raw(raw_file: Path) -> Path:
+    """Write an HDR-creation script for RAW_FILE, then run it.
+    """
     try:
-        raw_script = create_HDR_script(raw_file)
-        subprocess.call([os.path.abspath(raw_script)])
+        raw_script = create_hdr_script(raw_file)
+        subprocess.call([str(raw_script.resolve())])
         os.system(f'chmod a-x -R {shlex.quote(str(raw_script))}')
     except (Exception,) as errrr:
         print(f"Unable to create HDR tonemap from {raw_file}! The system said: {errrr}.")
@@ -226,6 +233,6 @@ if __name__ == "__main__":
         if whichfile:
             print("Processing %s ..." % whichfile)
             time.sleep(0.5)
-            hdr_tonemap_from_raw(whichfile)
+            hdr_tonemap_from_raw(Path(whichfile))
         else:
             print("Skipping parameter %s that was passed in: it's not truthy!" % whichfile)
