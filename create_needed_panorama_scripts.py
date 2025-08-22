@@ -22,28 +22,32 @@ The latest version of these scripts can always be found at
     https://github.com/patrick-brian-mooney/photo-processing
 """
 
-import glob
 import os
-import subprocess
 import time
 
-import photo_config               # https://github.com/patrick-brian-mooney/photo-processing/
+from pathlib import Path
+
+import tqdm
+
+import create_panorama_script as cps        # https://github.com/patrick-brian-mooney/photo-processing/
 
 
-def main():
-    for i in sorted([x[0] for x in os.walk('.')]):
+def main() -> None:
+    # If we ever require Python 3.12+, we can use pathlib.Path.walk instead of os.walk
+    for i, _, __ in tqdm.tqdm(os.walk('.')):
+        olddir = os.getcwd()
         try:
-            olddir = os.getcwd()
             os.chdir(i)
-            print("Currently checking directory:  " + os.path.abspath(i))
-            if len(glob.glob('*jpg') + glob.glob("*JPG")) > 0:
-                print("  JPEG files found!", end=" ")
-                if len(glob.glob("*pto")) > 0:
+            print(f"Currently checking directory: {Path(i).resolve()}")
+            jpegs = [f for f in Path().glob('*') if f.suffix.casefold() == '.jpg']
+            if jpegs:
+                print(f"  {len(jpegs)} JPEG files found!", end=" ")
+                if [f for f in Path().glob('*') if f.suffix.casefold() == '.pto']:
                     print("But there's an existing project file! Skipping...")
-                else:
-                    print("Creating new project script ...")
-                    subprocess.call([os.path.join(photo_config.executable_location('photo-processing'),
-                                                 'create_panorama_script.py')])
+                    continue
+
+                print("Creating new project script ...")
+                cps.produce_script(jpegs)
         finally:
             os.chdir(olddir)
             time.sleep(0.1)

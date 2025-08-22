@@ -56,15 +56,15 @@ The latest version of these scripts can always be found at
 """
 
 
-import glob
 import os
 import shlex
+import sys
 
 from typing import Sequence
 from pathlib import Path
 
 
-def produce_script(the_files: Sequence[Path]):
+def produce_script(the_files: Sequence[Path]) -> None:
     """Produce the actual script.
     """
     assert isinstance(the_files, Sequence)
@@ -72,7 +72,8 @@ def produce_script(the_files: Sequence[Path]):
     assert all([isinstance(f, Path) for f in the_files]), "ERROR! FIles passed to produce_script must be Paths!"
 
     the_files_list = ' '.join([shlex.quote(str(f)) for f in the_files])
-    project_file = shlex.quote(the_files[0] + ".pto")
+    project_file = shlex.quote(str(the_files[0].with_suffix(".pto")))
+
     if the_files:
         the_script = f"""#!/usr/bin/env bash
 # This script written by Patrick Mooney's create_panorama_script.py script, see
@@ -97,9 +98,10 @@ pano_modify --canvas=AUTO --crop=AUTO -o {project_file} {project_file}
 
 
 if __name__ == "__main__":
-    files = sorted(list(set(glob.glob('*JPG') + glob.glob('*jpg'))))
+    files = sorted([f for f in Path().glob('*') if f.suffix.casefold() == '.jpg'])
     if not files:
         print('You must call create_panorama_script.py in a folder with at least one .jpg or .JPG file!')
         print(f'   current working directory is {os.getcwd()}')
+        sys.exit(1)
 
-    produce_script([Path(f) for f in files])
+    produce_script(files)
