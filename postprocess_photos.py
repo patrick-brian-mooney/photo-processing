@@ -85,21 +85,21 @@ The latest version of these scripts can always be found at
 
 import argparse
 import datetime
-import fnmatch
 import functools
 import glob
 import os
-import re
 import shlex
 import shutil
 import subprocess
 import sys
 import time
+import warnings
 
 from pathlib import Path
 from typing import Sequence, Union
 
 from PIL import Image                   # [sudo] pip[3] install Pillow; https://python-pillow.org/
+import tqdm                             # [sudo] pip[3] install tqdm; https://tqdm.github.io/
 
 import create_HDR_script as hdr         # https://github.com/patrick-brian-mooney/photo-processing/
 import HDR_from_raw as hfr
@@ -107,17 +107,17 @@ import photo_file_utils as fu
 import photo_config
 
 
-photo_config.startup()                        # Check that the system meets minimum requirements; find necessary executables
+photo_config.startup()                  # Check that the system meets minimum requirements; find necessary executables
 
 debugging = True
 raw_must_be_paired_with_JPEG = False    # If True, delete raw photos that don't have a pre-existing JPEG counterpart
 delete_small_raws = True                # Delete raw photos that are paired with small JPEGs.
 maximum_short_side_length = 5000        # If an image's longest side is at least this long, it's not a "small image."
 
-file_name_mappings = fu.FilenameMapper(filename='file_names.csv')      # Maps original names to new names.
+file_name_mappings = fu.FilenameMapper(map_file=Path('file_names.csv'))    # Maps original names to new names.
 
 
-def python_help():
+def python_help() -> None:
     print("""
 
     If you want to use postprocess_photos.py as a Python module, you might plausibly
@@ -228,7 +228,7 @@ def set_timestamps(file_list: Sequence[Path],
                    days: int,
                    hr: int,
                    m: int,
-                   sec: Union[int, float]=0):
+                   sec: Union[int, float] = 0):
     """Calls exiftran to set the EXIF timestamps of all files in FILE_LIST to the
     indicated date and time.
 
@@ -244,7 +244,6 @@ def set_timestamps(file_list: Sequence[Path],
     """
     assert isinstance(file_list, Sequence), "ERROR: set_timestamps() was not passed a LIST OF FILES as FILE_LIST!"
     assert file_list, "ERROR! Must pass at least one file to set_timestamps!"
-
     assert all([isinstance(f, Path) for f in file_list]), "ERROR! Every file passed to set_timestamps must be a Path!"
     assert all([file_list[0].parent.samefile(f.parent) for f in file_list]), \
         "ERROR: all files passed to set_timestamps() must be in the same directory!"
@@ -259,19 +258,19 @@ def set_timestamps(file_list: Sequence[Path],
         os.chdir(old_dir)
 
 
-def _increment_timestamp(file_list):
-    """Add one hour to the timestamp for each file in FILE_LIST."""
-    assert isinstance(file_list, Sequence)
+def _increment_timestamp(file_list: Sequence[Path]) -> None:
+    """Add one hour to the timestamp for each file in FILE_LIST.
+    """
     adjust_timestamps(file_list, hr=1)
 
 
-def _decrement_timestamp(file_list):
-    """Subtract one hour from the timestamp for each file in FILE_LIST."""
-    assert isinstance(file_list, Sequence)
+def _decrement_timestamp(file_list: Sequence[Path]) -> None:
+    """Subtract one hour from the timestamp for each file in FILE_LIST.
+    """
     adjust_timestamps(file_list, hr=-1)
 
 
-def spring_forward():
+def spring_forward() -> None:
     """Adjust the EXIF timestamps on the batch of photos in the current directory by
     adding one hour to them, as if I had forgotten to do this after the DST
     change. This function is NEVER called directly by the code itself and is not
@@ -282,10 +281,11 @@ def spring_forward():
     mappings into memory; it just operates on all JPEG files in the current
     directory.
     """
-    _increment_timestamp(sorted(list(set(glob.glob('*jpg') + glob.glob('*JPG')))))
+    # FIXME! We should also be doing this for any sidecars
+    _increment_timestamp(sorted([f for f in Path().glob('*') if f.suffix.casefold() == '.jpg']))
 
 
-def fall_back():
+def fall_back() -> None:
     """Adjust the EXIF timestamps on the batch of photos in this directory by
     subtracting one hour from them, as if I had forgotten to do this after the DST
     change. This function is NEVER called directly by the code itself and is not
@@ -296,10 +296,11 @@ def fall_back():
     mappings into memory; it just operates on all JPEG files in the current
     directory.
     """
-    _decrement_timestamp(sorted(list(set(glob.glob('*jpg') + glob.glob('*JPG')))))
+    # FIXME! We should also be doing this for any sidecars
+    _decrement_timestamp(sorted([f for f in Path().glob('*') if f.suffix.casefold() == '.jpg']))
 
 
-def empty_thumbnails():
+def empty_thumbnails() -> None:
     """Create an empty .thumbnails directory and make it writable for no one.
     This routine DOES NOT REQUIRE having previously read in a set of filename
     mappings; it just operates on the current directory.
@@ -311,15 +312,17 @@ def empty_thumbnails():
                 shutil.rmtree(Path('.thumbnails'))
             else:
                 Path('.thumbnails').unlink()
+
         # OK, now create the directory and make it writable for no one
         Path('.thumbnails').mkdir(mode=0o555)
-    except:
-        print('\n')     # If an error occurs, end the status line that's waiting to be ended ...
-        raise           # then let the error propagate.
+
+    except BaseException as errrr:
+        print('\n')     # End the status line that's waiting to be ended
+        raise errrr     # before allowing the error to propagate.
     print(' ... done.\n\n')
 
 
-def delete_spurious_raw_files():
+def delete_spurious_raw_files() -> None:
     """This function performs a few related cleanup tasks.
 
     First, it ensures that every raw file has a corresponding JPEG file. I only
@@ -332,10 +335,10 @@ def delete_spurious_raw_files():
     This first action can be turned off by setting the global variable
     raw_must_be_paired_with_JPEG to False.
 
-    Second, it removes raw files whose JPEG files have been resized to lower-
-    resolution versions. I occasionally, through oversight or lack of time to make
-    settings adjustments or after-the-fact reconsideration, wind up with raw photos
-    whose corresponding JPEG shots are destined to be resized to a lower resolution
+    Second, it removes raw files whose JPEG files have been resized to lower-res
+    versions. I occasionally, through oversight or lack of time to make settings
+    adjustments or after-the-fact reconsideration, wind up with raw photos whose
+    corresponding JPEG shots are destined to be resized to a lower resolution
     because they only capture information and lack essentially all aesthetic merit.
     Provided that the small JPEG adequately captures a legible version of that
     information, I'd rather recover the drive space used to store the superfluous
@@ -352,25 +355,50 @@ def delete_spurious_raw_files():
     modifying or otherwise interacting with the global filename mappings at all.
     """
     # First, delete any raw files that do not have a corresponding JPEG.
+    @functools.lru_cache
+    def jpeg_finder(raw: Path) -> Path:
+        """Helper function used below.
+        """
+        return fu.find_alt_version(raw, fu.jpeg_extensions)
+
+    @functools.lru_cache
+    def max_img_length(img: Path) -> Union[None, int]:
+        """Helper function used below.
+        """
+        try:
+            im = Image.open(img)
+            return max(im.size)
+        except BaseException as errrr:
+            warnings.warn(f"Cannot retrieve dimensions for file {img}! The system said: {errrr}")
+            return None
+
     if raw_must_be_paired_with_JPEG:
         orphan_raws = [f for f in fu.list_of_raws() if not fu.find_alt_version(f, fu.jpeg_extensions)]
-        for which_raw in orphan_raws:
-            print(f"Raw file '{which_raw}' has no corresponding JPEG; deleting ...")
-            which_raw.unlink()
+        if orphan_raws:
+            print("\nEliminating raws without corresponding JPEGs ...")
+            for which_raw in tqdm.tqdm(orphan_raws):
+                print(f"Raw file '{which_raw}' has no corresponding JPEG; deleting ...")
+                which_raw.unlink()
+
     # Now, delete any raw files whose corresponding JPEG is "small."
     if delete_small_raws:
-        for which_raw in fu.list_of_raws():
-            corresponding_jpg = fu.find_alt_version(which_raw, fu.jpeg_extensions)
-            if corresponding_jpg:
-                im = Image.open(corresponding_jpg)
-                if max(im.size) < maximum_short_side_length:
-                    print(f"Raw file '{which_raw}' has low-resolution corresponding JPEG; deleting ...")
-                    which_raw.unlink()
-            else:                       # We SHOULD have already covered this ...
-                which_raw.unlink()          # ... but just for the sake of being perfectly sure ...
+        print("\nScanning raw files to find small corresponding JPEGs ...")
+        raws_with_jpg = [(raw, jpeg_finder(raw)) for raw in tqdm.tqdm(fu.list_of_raws()) if jpeg_finder(raw)]
+        if raws_with_jpg:
+            raws_with_small_jpgs = [(raw, jpg) for raw, jpg in tqdm.tqdm(raws_with_jpg) if
+                                    (max_img_length(jpg) and (max_img_length(jpg) < maximum_short_side_length))]
+            if raws_with_small_jpgs:
+                print("Deleting raw files whose JPEGs were reduced in size ...")
+                for which_raw, corr_jpg in tqdm.tqdm(raws_with_small_jpgs):
+                    if corr_jpg:
+                        print(f"Raw file '{which_raw}' has low-resolution JPEG with max. dimension "
+                              f"{max_img_length(corr_jpg)}; deleting ...")
+                        which_raw.unlink()
+                    else:                       # We SHOULD have already covered this ...
+                        which_raw.unlink()          # ... but just for the sake of being perfectly sure ...
 
 
-def rename_photos():
+def rename_photos() -> None:
     """Auto-rename files based on the time when they were taken. This routine
     DOES NOT REQUIRE that a set of filename mappings be read into memory;
     instead, it creates that set of mappings and writes it to the current
@@ -388,9 +416,8 @@ def rename_photos():
         renameable_extensions = set(fu.raw_photo_extensions + fu.jpeg_extensions + fu.other_image_extensions +
                                     fu.movie_extensions + fu.audio_extensions)
 
-        file_list = [][:]
         which_files = {f for f in Path().glob('*') if f.suffix in renameable_extensions}
-        file_list = [[fu.name_from_date(str(which_image)), which_image] for which_image in which_files]
+        file_list = [[fu.name_from_date(img), img] for img in which_files]
 
         # OK, now sort that list (twice). First, sort by original filename (globbing filenames does not preserve
         # order). Then, sort again by datetime string. Since Python sorts are stable, the second sort will preserve
@@ -400,12 +427,11 @@ def rename_photos():
 
         # Finally, actually rename the files, keeping a dictionary that maps the original to the new names.
         try:
-            while len(file_list) > 0:
-                which_file = file_list.pop(0)
-                new_name = fu.find_unique_name(Path(fu.name_from_date(str(which_file[1]))))     # FIXME: type wrangling!
+            for which_file in tqdm.tqdm(file_list):
+                new_name = fu.find_unique_name(fu.name_from_date(which_file[1]))
                 if not new_name.samefile(which_file[1]):
                     file_name_mappings.rename_and_map(which_file[1], new_name)
-                    raw_version = Path(fu.find_alt_version(which_file[1], fu.raw_photo_extensions)) #FIXME! will eventually just return Path!
+                    raw_version = fu.find_alt_version(which_file[1], fu.raw_photo_extensions)
                     if raw_version:
                         new_raw = new_name.with_suffix(raw_version.suffix)
                         file_name_mappings.rename_and_map(raw_version, new_raw)
@@ -423,20 +449,24 @@ def rename_photos():
     print('     ... done.\n\n')
 
 
-def restore_file_names():
+def restore_file_names() -> None:
     """Restore original file names, based on the dictionary in memory, which is
     assumed to be comprehensive and intact. This routine REQUIRES that a set of
     filename mappings is already in memory; this can be accomplished by calling
     read_filename_mappings() to read an existing file_names.csv file into
     memory.
+
+    # FIXME! Ultimately, the FilenameMapper object should be holding and mapping
+    Paths, not strings, and when that happens, we should use Path-based file
+    manipulations instead of os.path.
     """
-    for original_name, new_name in file_name_mappings.mapping.items():
+    for original_name, new_name in tqdm.tqdm(file_name_mappings.mapping.items()):
         if os.path.exists(new_name):
             print('Renaming "%s" to "%s".' % (new_name, original_name))
             os.rename(new_name, original_name)
 
 
-def rotate_photos():
+def rotate_photos() -> None:
     """Auto-rotate all photos using exiftran. DOES NOT REQUIRE that a set of
     filename mappings be in memory; it just operates on the JPEG files in the
     current folder.
@@ -445,18 +475,12 @@ def rotate_photos():
     passed to an external program.
     """
     print('Auto-rotating images ...\n\n')
-    all_photos, rest = sorted(glob.glob('*jpg') + glob.glob('*JPG')), None
-    while all_photos:
-        if len(all_photos) > 128:
-            all_photos, rest = all_photos[:128], all_photos[128:]
-        else:
-            rest = None
-        print()             # Give a comparatively subtle indication of when we've ended a block of 128 photos.
-        subprocess.call([photo_config.executable_location('exiftran'), '-aigp'] + all_photos)
-        all_photos = rest
+    all_photos = sorted([f for f in Path().glob('*') if f.suffix.casefold() == ".jpg"])
+    for photo in tqdm.tqdm(all_photos):
+        subprocess.call([photo_config.executable_location('exiftran'), '-aigp'] + [str(photo)])
 
 
-def process_shell_scripts():
+def process_shell_scripts() -> None:
     """Rewrite any shell scripts created by Magic Lantern.
 
     Currently, we only process HDR_????.SH scripts, which call enfuse. They MAY
@@ -485,9 +509,8 @@ def process_shell_scripts():
     print('\nRewriting enfuse HDR scripts ... ')
     try:
         all_scripts = [s for s in Path().glob('*') if cmp(s).startswith('hdr') and cmp(s).endswith('.sh')]
-        for which_script in all_scripts:
+        for which_script in tqdm.tqdm(all_scripts):
             print(f'    Rewriting {which_script}')
-            old_perms = os.stat(which_script).st_mode
             with open(which_script, 'rt') as the_script:
                 script_lines = the_script.readlines()
                 if script_lines[4].startswith('align_image_stack'):
@@ -512,7 +535,7 @@ def process_shell_scripts():
                                        else f
                                        for f in last_line_tokens[3:]]
 
-            hdr.create_script_from_file_list(hdr_input_files, file_to_move=which_script)
+            hdr.create_script_from_file_list(hdr_input_files, to_move=which_script)
 
     except BaseException as errrr:
         print()     # If an error occurs, end the line that's waiting to be ended before letting the error propagate.
@@ -521,7 +544,7 @@ def process_shell_scripts():
     print('\n ... done rewriting enfuse scripts.\n')
 
 
-def run_shell_scripts():
+def run_shell_scripts() -> None:
     """Run the executable shell scripts in the current directory, then make them
     non-executable after they have been run.
 
@@ -535,13 +558,13 @@ def run_shell_scripts():
     except FileExistsError:
         pass                                            # target directory already exists? Cool!
 
-    file_list = sorted([f for f in Path().glob("*") if (str(f).casefold().endswith('.sh') and os.access(f, os.X_OK))])
-    if not file_list:
-        print(f'No scripts to run in director {Path().resolve()} ...')
+    scripts = sorted([f for f in Path().glob("*") if (str(f).casefold().endswith('.sh') and os.access(f, os.X_OK))])
+    if not scripts:
+        print(f'No scripts to run in directory {Path().resolve()} ...')
         return
 
-    print(f"Running {len(file_list)} executable scripts{'s' if (len(file_list) > 1) else ''} in {os.getcwd()} ...")
-    for which_script in file_list:
+    print(f"Running {len(scripts)} executable script{'s' if (len(scripts) > 1) else ''} in {os.getcwd()} ...")
+    for which_script in tqdm.tqdm(scripts):
         print(f'\n\n    Running script: {which_script}')
         subprocess.call([str(which_script.resolve())])
         os.system(f'chmod a-x -R {shlex.quote(str(which_script))}')
@@ -558,15 +581,16 @@ def create_hdrs_from_raws():
     directory.
     """
     the_raws = sorted(fu.list_of_raws())
-    if the_raws:
-        print(f"\nCreating HDR JPEGs (and intermediate scripts) from {len(the_raws)} raw files ...\n\n")
-        for i, which_raw in enumerate(the_raws):
-            hfr.hdr_tonemap_from_raw(which_raw)
-    else:
+    if not the_raws:
         print("\nNo raw photos detected, moving on ...")
+        return
+
+    print(f"\nCreating HDR JPEGs (and intermediate scripts) from {len(the_raws)} raw files ...\n\n")
+    for i, which_raw in tqdm.tqdm(the_raws):
+        hfr.hdr_tonemap_from_raw(which_raw)
 
 
-def hang_around():
+def hang_around() -> None:
     """Offers to hang around, watching for executable shell scripts in the
     directory and running them if they appear. This might be handy if, for
     instance, all the shell scripts had been accidentally deleted: this
@@ -591,7 +615,7 @@ def hang_around():
 
 
 # OK, let's go
-def main():
+def main() -> None:
     force_debug = False  # Used if setup in IDE needed.
     if force_debug:
         # Whatever statements need are needed to set up an IDE run go here.
@@ -697,5 +721,5 @@ option) any later version. See the file LICENSE.md for details.
 
 
 if __name__ == "__main__":
-    print("We're starting, running under Python %s ..." % sys.version.split('\n')[0])
+    print(f"We're starting, running under Python {sys.version.split('\n')[0]} ...")
     main()
