@@ -364,7 +364,7 @@ class MainWindow(tk.Tk):
         sys.exit()
 
 
-force_debug = False
+force_debug = True
 
 
 @trap_and_report_errors

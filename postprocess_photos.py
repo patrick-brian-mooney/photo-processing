@@ -607,7 +607,7 @@ def hang_around() -> None:
         print(f'Looking for executable shell scripts at {datetime.datetime.now().isoformat()} ...')
         file_list = [f for f in Path().glob("*SH") if (str(f).casefold().endswith('.sh') and os.access(f, os.X_OK))]
         if file_list:
-            print(f'Found {len(file_list)} script{'s' if (len(file_list) > 1) else ''}; executing ...')
+            print(f"Found {len(file_list)} script{'s' if (len(file_list) > 1) else ''}; executing ...")
             run_shell_scripts()
         else:
             time.sleep(30)
@@ -720,5 +720,6 @@ option) any later version. See the file LICENSE.md for details.
 
 
 if __name__ == "__main__":
-    print(f"We're starting, running under Python {sys.version.split('\n')[0]} ...")
+    py_vers = sys.version.split('\n')[0]
+    print(f"We're starting, running under Python {py_vers} ...")
     main()
