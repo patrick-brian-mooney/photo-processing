@@ -34,7 +34,7 @@ DEFAULT_NUM_ENFUSE_FILES = 5   # Total number of input files that are referenced
 debugging = False           # Be chatty about what's going on?
 
 
-def print_usage(exit_value: int = 0):
+def print_usage(exit_value: int = 0) -> None:
     """Print a usage message."""
     print(__doc__)
     sys.exit(exit_value)
