@@ -88,7 +88,7 @@ def find_unique_name(suggested_name: Path) -> Path:
     return the_name
 
 
-def movie_recorded_date(which_file: Path):
+def movie_recorded_date(which_file: Path) -> str:
     """Tries to parse FFmpeg output to get the date the movie was recorded.
     #FIXME: probably quite fragile.
     """
@@ -102,7 +102,7 @@ def movie_recorded_date(which_file: Path):
         return ''.join([c for c in time_line.strip() if c.isdigit()])
 
     except IndexError:
-        return ''.join([c for c in which_file if c.isdigit()])
+        return ''.join([c for c in which_file.name if c.isdigit()])
 
 
 Apple_month_names = ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec')
@@ -283,7 +283,7 @@ class FilenameMapper(object):   # FIXME: We should make this indexable like a st
 
         self.filename = map_file
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return a printable representation.
         """
         ret = f"< FilenameMapper object (mapping {len(self.mapping)} files) "
@@ -291,7 +291,7 @@ class FilenameMapper(object):   # FIXME: We should make this indexable like a st
         ret += ">"
         return ret
 
-    def read_mappings(self, map_filename: Union[str, Path]):
+    def read_mappings(self, map_filename: Union[str, Path]) -> None:
         """Read mapping dictionary back into memory. Do this before restoring
         original file names, or before doing other things that require a set of
         filename mappings to be in memory.
@@ -320,7 +320,7 @@ class FilenameMapper(object):   # FIXME: We should make this indexable like a st
         self.filename = map_filename
 
     def add_mapping(self, orig_name: Union[str, Path],
-                    new_name: Union[str, Path]):
+                    new_name: Union[str, Path]) -> None:
         """Maps ORIG_NAME to NEW_NAME, i.e. creates a note that NEW_NAME was once
         called ORIG_NAME. This procedure does not do the renaming itself, and does
         not write the changes to disk.
@@ -329,14 +329,14 @@ class FilenameMapper(object):   # FIXME: We should make this indexable like a st
         if not isinstance(new_name, str): new_name = str(new_name)          # FIXME! Use Path!
 
         if orig_name in self.mapping.values():
-            for i in self.mapping:                  # If that appears anywhere in the dict as a name resulting from a rename  ...
+            for i in self.mapping:                  # If file appears  as a name resulting from a rename  ...
                 if self.mapping[i] == orig_name:    # ... go through the dict, looking for things that point to it ...
                     self.mapping[i] = new_name      # ... and update the references to the new name.
         else:
             self.mapping[orig_name] = new_name
 
     def rename_and_map(self, orig_name: Union[str, Path],
-                       new_name: Union[str, Path]):
+                       new_name: Union[str, Path]) -> None:
         """Rename a file and keep track of the mapping from old to new names.
         """
         if not isinstance(orig_name, str): orig_name = str(orig_name)       # FIXME! Use Path!
@@ -345,7 +345,7 @@ class FilenameMapper(object):   # FIXME: We should make this indexable like a st
         os.rename(orig_name, new_name)
         self.add_mapping(orig_name, new_name)
 
-    def write_mappings(self):
+    def write_mappings(self) -> None:
         """Write the mapping to the .csv file that stores it."""
         with open(self.filename, 'w', newline='') as file_names:
             writer = csv.writer(file_names, dialect='unix')

@@ -86,7 +86,6 @@ The latest version of these scripts can always be found at
 import argparse
 import datetime
 import functools
-import glob
 import os
 import shlex
 import shutil
