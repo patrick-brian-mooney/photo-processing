@@ -17,7 +17,12 @@ The latest version of these scripts can always be found at
 """
 
 
-import os, platform, shlex, subprocess, sys
+import os
+import platform
+import shutil
+import sys
+
+from pathlib import Path
 
 import PIL  # I'd rather have this fail here, during setup checking, then in other places.
 
@@ -39,38 +44,41 @@ executables = {
     'align_image_stack': None,
     'enfuse': None,
     'convert': None,
-    'photo-processing': os.path.split(os.path.abspath(sys.argv[0]))[0],   # Well ... path to the folder containing the current script, actually. #FIXME: this will break if we move scripts around.
+    'photo-processing': Path(sys.argv[0]).resolve().parent      # Path to the folder containing the current script.
 }
 
 
-def executable_location(executable_name):
+def executable_location(executable_name) -> str:
     """Return the known location for EXECUTABLE_NAME."""
-    assert executable_name in executables, "ERROR: no known location for %s!\n\nIs the externals.py module properly set up?" % executable_name
+    assert executable_name in executables, f"ERROR: no known location for {executable_name}!"
     return executables[executable_name]
 
 
-def populate_executables():
+def populate_executables() -> None:
     """Populate the list of external executable programs."""
     for which_exec in executables:
         try:
             if executables[which_exec] is None:             # use POSIX `which` to locate the binary.
-                executables[which_exec] = subprocess.check_output(['which', shlex.quote(which_exec)]).decode().strip()
+                executables[which_exec] = shutil.which(which_exec)
         except BaseException as err:
-            print("ERROR: unable to locate the program: %s." % which_exec)
-            print("Please be sure it is installed and located in your system $PATH.")
-            print("The system complained: %s" % err)
+            print(f"ERROR: unable to locate the program: {which_exec}.")
+            print(f"Please be sure it is installed and located in your system $PATH.")
+            print(f"The system complained: {err}")
             sys.exit(1)
 
 
-def startup():
+def startup() -> None:
     """Handle basic startup tasks: after making sure we're not running under Windows,
     populate the list of external programs. Doesn't do anything if the list is
     already initialized.
+
     * Assumes a terminal at least 80 chars wide.
     """
     if None in executables.values():
         if "windows" in platform.system().lower():
-            print("ERROR: Patrick Mooney's photo-processing scripts do not run under Windows. With\nthe proper external programs and a little attention, though, they should run\nunder most Unix-like OSes.")
+            print("ERROR: Patrick Mooney's photo-processing scripts do not run under Windows. "
+                  "With\nthe proper external programs and a little attention, though, they should run\nunder most "
+                  "Unix-like OSes.")
             sys.exit(1)
         populate_executables()
 
