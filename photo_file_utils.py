@@ -191,7 +191,7 @@ def name_from_date(which_file: Path) -> Path:
             with open(which_file, 'rb') as f:
                 tags = exifread.process_file(f, details=False)  # don't parse thumbs or other slow data we don't need.
         except AttributeError as errrr:     # guard against some unprocessable HEIF files returning None
-            raise KeyError                      # just move along if process_file bombs on an intermediate None
+            raise KeyError from errrr           # just move along if process_file bombs on an intermediate None
         dt = tags['EXIF DateTimeOriginal'].values
     except KeyError:
         pass
@@ -248,10 +248,7 @@ def find_alt_version(orig_name: Path,
 def list_of_raws() -> Sequence[Path]:
     """Get a list of all raw files in the current directory.
     """
-    all_raws = [][:]
-    for which_ext in raw_photo_extensions:
-        all_raws += Path().glob(f"*{which_ext}")
-    return sorted(set(all_raws))
+    return sorted({f for f in Path().glob('*') if f.suffix.casefold in raw_photo_extensions})
 
 
 class FilenameMapper(object):   # FIXME: We should make this indexable like a standard dictionary.
