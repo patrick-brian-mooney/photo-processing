@@ -67,7 +67,7 @@ def produce_shifted_tonemap(raw_file: Path,
     of the TIFF file produced.
     """
     log_it("INFO: creating, tagging, and testing a file for Ev shift %d" % ev_shift, 2)
-    outfile = Path(f'HDR_AIS_{raw_file.name}{"+" if ev_shift >= 0 else ""}{ev_shift}').with_suffix(".tif")
+    outfile = Path(f'HDR_AIS_{raw_file.stem}{"+" if ev_shift >= 0 else ""}{ev_shift}').with_suffix(".tif")
 
     command = [photo_config.executable_location('dcraw'), '-T', '-c', '-v', '-w', '-W', '-b']
     command += [str(2 ** ev_shift), str(raw_file)]
@@ -186,13 +186,14 @@ def create_hdr_script(raw_file: Path) -> Union[Path, None]:
             current_shift += 1
 
         files_to_merge = sorted(massage_file_list(list(shift_mappings.values())))
-        base_tiff = Path(raw_file.name + "+0.tif")
+        base_tiff = Path(raw_file.stem + "+0.tif")
 
         # Now move the non-Ev-shifted file to the front of the list; create_script_from_file_list assumes that.
         try:    # If the unshifted image appears in the file list, use that for the base exposure
             files_to_merge.insert(0, files_to_merge.pop(files_to_merge.index(base_tiff)))
         except ValueError:
             # Otherwise, just sort the list, which does a fairly good job of picking a low value for the front.
+            # FIXME: use the middle file instead
             files_to_merge.sort()
             base_tiff = files_to_merge[0]
         new_script = chs.create_script_from_file_list(files_to_merge, delete_originals=True, suppress_align=True,
@@ -208,7 +209,7 @@ def create_hdr_script(raw_file: Path) -> Union[Path, None]:
         os.chdir(old_dir)
 
 
-def hdr_tonemap_from_raw(raw_file: Path) -> Path:
+def hdr_tonemap_from_raw(raw_file: Path) -> None:
     """Write an HDR-creation script for RAW_FILE, then run it.
     """
     try:
@@ -232,7 +233,7 @@ if __name__ == "__main__":
         sys.exit(0)
     for whichfile in sys.argv[1:]:
         if whichfile:
-            print("Processing %s ..." % whichfile)
+            print(f"Processing {whichfile} ...")
             time.sleep(0.5)
             hdr_tonemap_from_raw(Path(whichfile))
         else:

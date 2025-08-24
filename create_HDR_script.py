@@ -88,7 +88,7 @@ def create_script_from_file_list(hdr_input_files: Sequence[Path],
 #     https://github.com/patrick-brian-mooney/photo-processing/
 
 OLDDIR=$(pwd)
-cd {shlex.quote(str(wdir))}
+cd {shlex.quote(str(wdir.resolve()))}
 """
 
     if not suppress_align:

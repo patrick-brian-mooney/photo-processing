@@ -36,7 +36,7 @@ other_image_extensions = { '.png', '.webp' }
 json_extensions = { '.json', }
 all_alternates = raw_photo_extensions | jpeg_extensions | json_extensions | other_image_extensions
 
-movie_extensions = { '.mov', '.mp4', '.avi', '.mkv' }
+movie_extensions = { '.mov', '.mp4', '.avi', '.mkv', '.3gp' }
 audio_extensions = { '.wav', '.m4a', '.flac', '.mp3' }
 
 darkframe_location = '/home/patrick/Photos/t7i_darkframe_for_dcraw.pgm'
@@ -80,7 +80,7 @@ def find_unique_name(suggested_name: Path) -> Path:
     found, index, the_name = False, 1, Path(str(suggested_name).strip())
     while not found:
         if index > 0:
-            the_name = Path(f'{f_name}_{index}.{f_ext}'.strip())
+            the_name = Path(f'{f_name}_{index}{f_ext}'.strip())
         if the_name.exists():
             index += 1          # Bump the counter and try again
         else:
@@ -224,10 +224,14 @@ def name_from_date(which_file: Path) -> Path:
 def find_alt_version(orig_name: Path,
                      alternate_extensions: Iterable[str]) -> Union[Path, None]:
     """Check to see if there is an alternate version of this file (e.g., a raw file
-    corresponding to a JPEG). This logic depends entirely on "alternate versions"
-    having identical filenames with differing extensions.
+    corresponding to a JPEG). If so, return it. This function depends entirely on
+    "alternate versions" having identical filenames except for differing extensions.
 
-    If an "alternate version" exists, return its name; otherwise, return None.
+    If an "alternate version" exists, return its name; otherwise, return None. If
+    multiple "alternate versions" occur based on the list of ALTERNATE_EXTENSIONS
+    (say, if there are multiple versions with extensions identicaly except for
+    case, on case-insensitive systems), return the one that occurs earliest in a
+    lexicographic sort of otherwise-identical options.
 
     ALTERNATE_EXTENSIONS is a sequence of other extensions to check for. This list
     is checked in order, and the first file found with a matching extension is
@@ -239,9 +243,9 @@ def find_alt_version(orig_name: Path,
     assert isinstance(orig_name, Path), "ERROR! Files passed to find_alt_version must be Paths!"
 
     for ext in alternate_extensions:
-        alt_file = orig_name.with_suffix(ext)
-        if alt_file.exists():
-            return alt_file
+        alt_files = [f for f in Path().glob(orig_name.stem + '.*') if f.suffix.casefold() in alternate_extensions]
+        if alt_files:
+            return sorted(alt_files)[0]
 
     return None                 # If we didn't find one ...
 

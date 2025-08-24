@@ -412,10 +412,10 @@ def rename_photos() -> None:
     print('Renaming photos (based on EXIF data, where possible) ... ')
     try:
         # First, get a list of all relevant files and (as best we can determine) when they were shot.
-        renameable_extensions = set(fu.raw_photo_extensions + fu.jpeg_extensions + fu.other_image_extensions +
-                                    fu.movie_extensions + fu.audio_extensions)
+        renameable_extensions = fu.raw_photo_extensions | fu.jpeg_extensions | fu.other_image_extensions
+        renameable_extensions = renameable_extensions | (fu.movie_extensions | fu.audio_extensions)
 
-        which_files = {f for f in Path().glob('*') if f.suffix in renameable_extensions}
+        which_files = {f for f in Path().glob('*') if f.suffix.casefold() in renameable_extensions}
         file_list = [[fu.name_from_date(img), img] for img in which_files]
 
         # OK, now sort that list (twice). First, sort by original filename (globbing filenames does not preserve
@@ -426,15 +426,16 @@ def rename_photos() -> None:
 
         # Finally, actually rename the files, keeping a dictionary that maps the original to the new names.
         try:
-            for which_file in tqdm.tqdm(file_list):
-                new_name = fu.find_unique_name(fu.name_from_date(which_file[1]))
-                if not new_name.samefile(which_file[1]):
-                    file_name_mappings.rename_and_map(which_file[1], new_name)
-                    raw_version = fu.find_alt_version(which_file[1], fu.raw_photo_extensions)
+            for _, cur_name in tqdm.tqdm(file_list):
+                # recalc suggested name. Don't reuse the previously generated one -- dir contents might have changed.
+                new_name = fu.find_unique_name(fu.name_from_date(cur_name))
+                if not new_name.exists() or not new_name.samefile(cur_name):
+                    file_name_mappings.rename_and_map(cur_name, new_name)
+                    raw_version = fu.find_alt_version(cur_name, fu.raw_photo_extensions)
                     if raw_version:
                         new_raw = new_name.with_suffix(raw_version.suffix)
                         file_name_mappings.rename_and_map(raw_version, new_raw)
-                    json_version = fu.find_alt_version(which_file[1], fu.json_extensions)
+                    json_version = fu.find_alt_version(cur_name, fu.json_extensions)
                     if json_version:
                         file_name_mappings.rename_and_map(json_version, new_name.with_suffix('.json'))
 
@@ -585,7 +586,7 @@ def create_hdrs_from_raws():
         return
 
     print(f"\nCreating HDR JPEGs (and intermediate scripts) from {len(the_raws)} raw files ...\n\n")
-    for i, which_raw in tqdm.tqdm(the_raws):
+    for which_raw in tqdm.tqdm(the_raws):
         hfr.hdr_tonemap_from_raw(which_raw)
 
 
@@ -615,10 +616,10 @@ def hang_around() -> None:
 
 # OK, let's go
 def main() -> None:
-    force_debug = False  # Used if setup in IDE needed.
+    force_debug = False     # Used if setup in IDE needed.
     if force_debug:
         # Whatever statements need are needed to set up an IDE run go here.
-        os.chdir('/home/patrick/Photos/2024-04-10')
+        os.chdir('/home/patrick/Photos/2025-08-22')
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
                                      epilog="""Currently, this suite of scripts depends (directly itself, or indirectly by
