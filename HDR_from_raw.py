@@ -137,7 +137,8 @@ def create_hdr_script(raw_file: Path) -> Union[Path, None]:
     """
     assert isinstance(raw_file, Path), "ERROR! Files passed to create_hdr_script must be Paths!"
     assert raw_file.exists(), "ERROR! Cannot produce an HDR script for a file that does not exist!"
-    assert raw_file.suffix in fu.raw_photo_extensions, f"ERROR! {raw_file.suffix} is not a recognized raw file type!"
+    assert raw_file.suffix.casefold() in fu.raw_photo_extensions, \
+        f"ERROR! {raw_file.suffix} is not a recognized raw file!"
 
     log_it(f"INFO: creating an HDR tonemapping script for raw file '{raw_file}'")
     old_dir = os.getcwd()

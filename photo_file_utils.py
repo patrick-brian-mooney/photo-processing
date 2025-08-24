@@ -19,6 +19,7 @@ import os
 import shlex
 import subprocess
 import sys
+import warnings
 
 from pathlib import Path
 from typing import Iterable, Mapping, Optional, Sequence, Tuple, Type, Union
@@ -29,14 +30,14 @@ import exifread                     # [sudo] pip[3] install exifread; or, https:
 import photo_config                 # https://github.com/patrick-brian-mooney/photo-processing
 
 
-raw_photo_extensions = ('CR2', 'cr2', 'DNG', 'dng', 'RAF', 'raf', 'DCR', 'dcr', 'NEF', 'nef')
-jpeg_extensions = ('jpg', 'JPG', 'jpeg', 'JPEG', 'jpe', 'JPE')
-other_image_extensions = ('png', 'PNG', 'webp', 'WEBP')
-json_extensions = ('json', 'JSON')
-all_alternates = tuple(sorted(list(raw_photo_extensions + jpeg_extensions + json_extensions + other_image_extensions)))
+raw_photo_extensions = { '.cr2', 'dng', '.raf', '.dcr', '.nef' }
+jpeg_extensions = { '.jpg', '.jpeg', '.jpe' }
+other_image_extensions = { '.png', '.webp' }
+json_extensions = { '.json', }
+all_alternates = raw_photo_extensions | jpeg_extensions | json_extensions | other_image_extensions
 
-movie_extensions = ('MOV', 'mov', 'MP4', 'mp4', 'AVI', 'avi',  'm4a', 'M4A', 'mkv', "MKV",)
-audio_extensions = ('wav', 'WAV', 'FLAC', 'flac', 'mp3', 'MP3', )
+movie_extensions = { '.mov', '.mp4', '.avi', '.mkv' }
+audio_extensions = { '.wav', '.m4a', '.flac', '.mp3' }
 
 darkframe_location = '/home/patrick/Photos/t7i_darkframe_for_dcraw.pgm'
 measured_darkness_level = "2047.901764"     # pamsumm -mean on the previously specified image.
@@ -200,7 +201,7 @@ def name_from_date(which_file: Path) -> Path:
         try:
             dt = tags['Image DateTime'].values
         except (KeyError, UnboundLocalError):       # Sigh. Not all image-making devices always generate EXIF info.
-            if os.path.splitext(which_file)[1].strip().strip('.').strip() in (movie_extensions + audio_extensions):
+            if which_file.suffix in (movie_extensions | audio_extensions):
                 dt = movie_recorded_date(which_file)
             else:
                 dt = parse_apple_filename(which_file)
@@ -221,7 +222,7 @@ def name_from_date(which_file: Path) -> Path:
 
 
 def find_alt_version(orig_name: Path,
-                     alternate_extensions: Sequence[str]) -> Union[Path, None]:
+                     alternate_extensions: Iterable[str]) -> Union[Path, None]:
     """Check to see if there is an alternate version of this file (e.g., a raw file
     corresponding to a JPEG). This logic depends entirely on "alternate versions"
     having identical filenames with differing extensions.
@@ -248,7 +249,7 @@ def find_alt_version(orig_name: Path,
 def list_of_raws() -> Sequence[Path]:
     """Get a list of all raw files in the current directory.
     """
-    return sorted({f for f in Path().glob('*') if f.suffix.casefold in raw_photo_extensions})
+    return sorted({f for f in Path().glob('*') if f.suffix.casefold() in raw_photo_extensions})
 
 
 class FilenameMapper(object):   # FIXME: We should make this indexable like a standard dictionary.
@@ -315,7 +316,7 @@ class FilenameMapper(object):   # FIXME: We should make this indexable like a st
                 for key, value in {rows[0]:rows[1] for rows in reader}.items():
                     self.add_mapping(key, value)
         except FileNotFoundError:
-            pass                    # Oh well, no mappings file found to read from.
+            warnings.warn(f"Unable to read file mappings file {map_filename}! File does not exist.")
 
         self.filename = map_filename
 
