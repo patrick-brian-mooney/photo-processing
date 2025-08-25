@@ -273,7 +273,7 @@ class MainWindow(tk.Tk):
         log_it(f"INFO: deleting files and their alternates for {len(self.file_list)} files", 2)
         for f in self.file_list:
             log_it(f"INFO: deleting {f} and all linked files", 3)
-            for ext in sorted(list(fu.all_alternates)):
+            for ext in sorted(fu.all_alternates):
                 if f.with_suffix(ext).exists():
                     f.with_suffix(ext).unlink()
             os.unlink(f)
