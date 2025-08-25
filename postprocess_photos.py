@@ -721,6 +721,10 @@ option) any later version. See the file LICENSE.md for details.
 
 
 if __name__ == "__main__":
-    py_vers = sys.version.split('\n')[0]
-    print(f"We're starting, running under Python {py_vers} ...")
-    main()
+    start_time = datetime.datetime.now()
+    try:
+        py_vers = sys.version.split('\n')[0]
+        print(f"We're starting, running under Python {py_vers} ...")
+        main()
+    finally:
+        print(f"\n\nRun finished in {((datetime.datetime.now() - start_time).seconds)/60:.3f} minutes!")
