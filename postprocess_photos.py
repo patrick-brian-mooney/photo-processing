@@ -257,13 +257,13 @@ def set_timestamps(file_list: Sequence[Path],
         os.chdir(old_dir)
 
 
-def _increment_timestamp(file_list: Sequence[Path]) -> None:
+def increment_timestamp(file_list: Sequence[Path]) -> None:
     """Add one hour to the timestamp for each file in FILE_LIST.
     """
     adjust_timestamps(file_list, hr=1)
 
 
-def _decrement_timestamp(file_list: Sequence[Path]) -> None:
+def decrement_timestamp(file_list: Sequence[Path]) -> None:
     """Subtract one hour from the timestamp for each file in FILE_LIST.
     """
     adjust_timestamps(file_list, hr=-1)
@@ -281,7 +281,7 @@ def spring_forward() -> None:
     directory.
     """
     # FIXME! We should also be doing this for any sidecars
-    _increment_timestamp(sorted([f for f in Path().glob('*') if f.suffix.casefold() == '.jpg']))
+    increment_timestamp(sorted([f for f in Path().glob('*') if f.suffix.casefold() == '.jpg']))
 
 
 def fall_back() -> None:
@@ -296,7 +296,7 @@ def fall_back() -> None:
     directory.
     """
     # FIXME! We should also be doing this for any sidecars
-    _decrement_timestamp(sorted([f for f in Path().glob('*') if f.suffix.casefold() == '.jpg']))
+    decrement_timestamp(sorted([f for f in Path().glob('*') if f.suffix.casefold() == '.jpg']))
 
 
 def empty_thumbnails() -> None:

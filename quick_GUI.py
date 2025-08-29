@@ -240,8 +240,8 @@ class MainWindow(tk.Tk):
 
         for f in tqdm.tqdm(self.file_list):
             log_it(f"INFO: incrementing timestamp on '{f}' and renaming", 3)
-            pp._increment_timestamp([f])
-            # Note that _increment_timestamp() will automatically rename the file
+            pp.increment_timestamp([f])
+            # Note that increment_timestamp() will automatically rename the file
 
         mappings.write_mappings()
         sys.exit()
@@ -262,7 +262,7 @@ class MainWindow(tk.Tk):
 
         for f in tqdm.tqdm(self.file_list):
             log_it(f"INFO: decrementing timestamp on '{f}' and renaming", 3)
-            pp._decrement_timestamp([f])  # _decrement_timestamp() will automatically rename the file
+            pp.decrement_timestamp([f])  # decrement_timestamp() will automatically rename the file
 
         mappings.write_mappings()
         sys.exit()
@@ -365,7 +365,7 @@ class MainWindow(tk.Tk):
         sys.exit()
 
 
-force_debug = True
+force_debug = False
 
 
 @trap_and_report_errors
