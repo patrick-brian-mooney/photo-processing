@@ -193,7 +193,8 @@ class MainWindow(tk.Tk):
                       s: float) -> None:
             """Convenience wrapper that provides a closure to capture outer-scope values.
             """
-            pp.adjust_timestamps(self.file_list, yr, mo, days, hr, m, s, rename=rename)
+            for f in tqdm.tqdm(self.file_list):
+                pp.adjust_timestamps([f], yr, mo, days, hr, m, s, rename=rename)
 
         # FIXME: we need a text label at the top telling the user what to do.
         dialog = tk.Toplevel()
@@ -216,7 +217,8 @@ class MainWindow(tk.Tk):
                       s: float) -> None:
             """Convenience wrapper that provides a closure to capture outer-scope value.
             """
-            pp.set_timestamps(self.file_list, yr, mo, days, hr, m, s)
+            for f in tqdm.tqdm(self.file_list):
+                pp.set_timestamps([f], yr, mo, days, hr, m, s)
 
         # FIXME: we need a text label at the top telling the user what to do.
         dialog = tk.Toplevel()
@@ -289,15 +291,17 @@ class MainWindow(tk.Tk):
         is a string constant that constitutes a command-line flag to the exiftran
         program.
         """
-        subprocess.call([photo_config.executable_location('exiftran'),
-                         f'-{orientation}ig'] + [str(f) for f in self.file_list])
+        for f in tqdm.tqdm(self.file_list):
+            subprocess.call([photo_config.executable_location('exiftran'),
+                             f'-{orientation}ig', str(f)])
         sys.exit()
 
     @trap_and_report_errors
     def regen_thumb(self):
         """Regenerate the thumbnail image for a JPEG file.
         """
-        subprocess.call([photo_config.executable_location('exiftran'), '-ig'] + [str(f) for f in self.file_list])
+        for f in tqdm.tqdm(self.file_list):
+            subprocess.call([photo_config.executable_location('exiftran'), '-ig', str(f)])
         sys.exit()
 
     @trap_and_report_errors
