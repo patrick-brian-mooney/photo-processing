@@ -122,7 +122,7 @@ class DateTimeSetDialog(DateTimeAdjustDialog):
 class MainWindow(tk.Tk):
     """Class representing the main window.
     """
-    def __init__(self, *pargs, file_list: Sequence[Path], **kwargs):
+    def __init__(self, file_list: Sequence[Path], *pargs, **kwargs):
         tk.Tk.__init__(self, *pargs, **kwargs)
 
         assert isinstance(file_list, Sequence), "ERROR! Files passed to MainWindow.__init__() must be in a list!"
@@ -235,7 +235,7 @@ class MainWindow(tk.Tk):
         log_it(f"INFO: those files are: {self.file_list}", (4 if len(self.file_list) > 4 else 2))
 
         mappings = fu.FilenameMapper()
-        mappings.read_mappings('file_names.csv')
+        mappings.read_mappings(Path('file_names.csv'))
 
         for f in self.file_list:
             log_it(f"INFO: incrementing timestamp on '{f}' and renaming", 3)
@@ -257,7 +257,7 @@ class MainWindow(tk.Tk):
         log_it(f"INFO: those files are: {self.file_list}", (4 if len(self.file_list) > 4 else 2))
 
         mappings = fu.FilenameMapper()
-        mappings.read_mappings('file_names.csv')
+        mappings.read_mappings(Path('file_names.csv'))
 
         for f in self.file_list:
             log_it(f"INFO: decrementing timestamp on '{f}' and renaming", 3)
@@ -372,7 +372,7 @@ def startup() -> List[Path]:
     photo_config.startup()              # Check that the system meets minimum requirements; find necessary executables
     if force_debug:
         import glob
-        sys.argv[1:] = glob.glob('/home/patrick/Photos/2024-11-14/*cr2')
+        sys.argv[1:] = glob.glob('/home/patrick/Photos/2024-11-14/canon/*cr2')
 
     file_list = [Path(f) for f in sys.argv[1:]]
     log_it(f"OK, we're starting, and operating on {len(file_list)} files", 2)
@@ -395,4 +395,5 @@ def startup() -> List[Path]:
 
 if __name__ == "__main__":
     files = startup()       # set up, and get the list of files we're operating on
-    MainWindow(file_list=files).mainloop()
+    win = MainWindow(file_list=files)
+    win.mainloop()

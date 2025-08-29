@@ -212,7 +212,7 @@ def adjust_timestamps(file_list: Sequence[Path],
 
         if rename:
             mappings = fu.FilenameMapper()
-            mappings.read_mappings('file_names.csv')
+            mappings.read_mappings(Path('file_names.csv'))
             for f in file_list:
                 new_name = fu.find_unique_name(fu.name_from_date(f))
                 mappings.rename_and_map(f, new_name)
