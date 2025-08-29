@@ -235,15 +235,11 @@ class MainWindow(tk.Tk):
         log_it(f"INFO: current directory is {os.getcwd()}", 3)
         log_it(f"INFO: those files are: {self.file_list}", (4 if len(self.file_list) > 4 else 2))
 
-        mappings = fu.FilenameMapper()
-        mappings.read_mappings(Path('file_names.csv'))
-
         for f in tqdm.tqdm(self.file_list):
             log_it(f"INFO: incrementing timestamp on '{f}' and renaming", 3)
             pp.increment_timestamp([f])
             # Note that increment_timestamp() will automatically rename the file
 
-        mappings.write_mappings()
         sys.exit()
 
     @trap_and_report_errors
@@ -257,14 +253,10 @@ class MainWindow(tk.Tk):
         log_it(f"INFO: current directory is {os.getcwd()}", 3)
         log_it(f"INFO: those files are: {self.file_list}", (4 if len(self.file_list) > 4 else 2))
 
-        mappings = fu.FilenameMapper()
-        mappings.read_mappings(Path('file_names.csv'))
-
         for f in tqdm.tqdm(self.file_list):
             log_it(f"INFO: decrementing timestamp on '{f}' and renaming", 3)
             pp.decrement_timestamp([f])  # decrement_timestamp() will automatically rename the file
 
-        mappings.write_mappings()
         sys.exit()
 
     @trap_and_report_errors
