@@ -24,9 +24,10 @@ import sys
 from pathlib import Path
 from typing import Any, Callable, List, Literal, Optional, Sequence, Type, Union
 
-
 import tkinter as tk
 import tkinter.messagebox as tk_msgbox
+
+import tqdm                         # [sudo] pip[3] install tqdm; https://tqdm.github.io/
 
 import patrick_logger               # https://github.com/patrick-brian-mooney/python-personal-library/blob/master/patrick_logger.py
 from patrick_logger import log_it
@@ -237,7 +238,7 @@ class MainWindow(tk.Tk):
         mappings = fu.FilenameMapper()
         mappings.read_mappings(Path('file_names.csv'))
 
-        for f in self.file_list:
+        for f in tqdm.tqdm(self.file_list):
             log_it(f"INFO: incrementing timestamp on '{f}' and renaming", 3)
             pp._increment_timestamp([f])
             # Note that _increment_timestamp() will automatically rename the file
@@ -259,7 +260,7 @@ class MainWindow(tk.Tk):
         mappings = fu.FilenameMapper()
         mappings.read_mappings(Path('file_names.csv'))
 
-        for f in self.file_list:
+        for f in tqdm.tqdm(self.file_list):
             log_it(f"INFO: decrementing timestamp on '{f}' and renaming", 3)
             pp._decrement_timestamp([f])  # _decrement_timestamp() will automatically rename the file
 
@@ -271,7 +272,7 @@ class MainWindow(tk.Tk):
         """Delete the file, with any alternate or paratextual associated files.
         """
         log_it(f"INFO: deleting files and their alternates for {len(self.file_list)} files", 2)
-        for f in self.file_list:
+        for f in tqdm.tqdm(self.file_list):
             log_it(f"INFO: deleting {f} and all linked files", 3)
             for ext in sorted(fu.all_alternates):
                 if f.with_suffix(ext).exists():
@@ -285,7 +286,7 @@ class MainWindow(tk.Tk):
         """Proportionally resize each file in FILE_LIST so that its longest side is the
         length specified by LONGEST_SIDE.
         """
-        for f in self.file_list:
+        for f in tqdm.tqdm(self.file_list):
             subprocess.call([photo_config.executable_location('mogrify'), '-resize',
                              f'{longest_side}x{longest_side}'] + [str(f)])
         sys.exit()
@@ -312,7 +313,7 @@ class MainWindow(tk.Tk):
         """Create automated tonemaps from the specified raw files.
         """
         log_it(f"INFO: creating {len(self.file_list)} tonemaps from raw files", 2)
-        for f in self.file_list:
+        for f in tqdm.tqdm(self.file_list):
             log_it(f"INFO: trying to tonemap {f}", 3)
             raw_file = fu.find_alt_version(f, fu.raw_photo_extensions)
             if raw_file:
@@ -330,7 +331,7 @@ class MainWindow(tk.Tk):
         This function does not, itself, run the scripts.
         """
         log_it(f"INFO: creating {len(self.file_list)} tonemaps from raw files", 2)
-        for f in self.file_list:
+        for f in tqdm.tqdm(self.file_list):
             log_it("INFO: trying to tonemap {f}", 3)
             raw_file = fu.find_alt_version(f, fu.raw_photo_extensions)
             if raw_file:
