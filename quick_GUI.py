@@ -369,7 +369,8 @@ def startup() -> List[Path]:
     photo_config.startup()              # Check that the system meets minimum requirements; find necessary executables
     if force_debug:
         import glob
-        sys.argv[1:] = glob.glob('/home/patrick/Photos/2024-11-14/canon/*cr2')
+        # sys.argv[1:] = glob.glob('/home/patrick/Photos/2024-11-14/canon/*cr2')
+        sys.argv.append("/home/patrick/Photos/2024-11-14/2024-11-10_13_50_29_1.cr2")
 
     file_list = [Path(f) for f in sys.argv[1:]]
     log_it(f"OK, we're starting, and operating on {len(file_list)} files", 2)
