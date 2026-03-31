@@ -616,10 +616,10 @@ def hang_around() -> None:
 
 # OK, let's go
 def main() -> None:
-    force_debug = False     # Used if setup in IDE needed.
+    force_debug = False         # Used if program setup in IDE is needed.
     if force_debug:
         # Whatever statements need are needed to set up an IDE run go here.
-        os.chdir('/home/patrick/Photos/2025-08-22')
+        os.chdir('/home/patrick/Photos/2025-05-25')
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter,
                                      epilog="""Currently, this suite of scripts depends (directly itself, or indirectly by
