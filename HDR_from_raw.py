@@ -226,8 +226,8 @@ force_debug = False
 if __name__ == "__main__":
     if force_debug:
         # Any debugging-harness commands go here.
-        # hdr_tonemap_from_raw("/home/patrick/Photos/film/by roll number/1485/1485-01.dng")
-        pass
+        # hdr_tonemap_from_raw(Path("/home/patrick/Photos/film/by roll number/1466/1466-01.dng"))
+        sys.exit()
     if len(sys.argv) == 1 or sys.argv[1] in ['--help', '-h']:
         print(__doc__)
         sys.exit(0)
