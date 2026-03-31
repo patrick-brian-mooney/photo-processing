@@ -30,7 +30,7 @@ import exifread                     # [sudo] pip[3] install exifread; or, https:
 import photo_config                 # https://github.com/patrick-brian-mooney/photo-processing
 
 
-raw_photo_extensions = { '.cr2', 'dng', '.raf', '.dcr', '.nef' }
+raw_photo_extensions = { '.cr2', '.dng', '.raf', '.dcr', '.nef' }
 jpeg_extensions = { '.jpg', '.jpeg', '.jpe' }
 other_image_extensions = { '.png', '.webp' }
 json_extensions = { '.json', }
