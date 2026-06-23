@@ -1,4 +1,4 @@
-#!/home/patrick/Documents/programming/python_projects/photo-processing/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 The postprocess_photos.py script performs the kind of postprocessing work that

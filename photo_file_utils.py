@@ -1,4 +1,4 @@
-#!/home/patrick/Documents/programming/python_projects/photo-processing/bin/python3
+#!/home/patrick/Documents/programming/python_projects/photo-processing/venv/bin/python3
 # -*- coding: utf-8 -*-
 """A series of file-related utilities for my photo postprocessing scripts.
 

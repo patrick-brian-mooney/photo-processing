@@ -1,4 +1,4 @@
-#!/home/patrick/Documents/programming/python_projects/photo-processing/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """This quick hack makes an HDR script from all JPG photos in the current
 directory. Then it runs it. It assumes that all the photos are JPGs in the
