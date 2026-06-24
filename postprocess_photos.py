@@ -227,7 +227,8 @@ def set_timestamps(file_list: Sequence[Path],
                    days: int,
                    hr: int,
                    m: int,
-                   sec: Union[int, float] = 0):
+                   sec: Union[int, float] = 0,
+                   rename: bool = False):
     """Calls exiftran to set the EXIF timestamps of all files in FILE_LIST to the
     indicated date and time.
 
@@ -253,6 +254,14 @@ def set_timestamps(file_list: Sequence[Path],
         f_date = f"{yr}:{mo}:{days} {hr}:{m}:{sec}"
         subprocess.call([photo_config.executable_location('exiftool'), '-m', f'-AllDates={f_date}',
                          f'-FileModifyDate={f_date}', '-overwrite_original'] + [str(f) for f in file_list])
+
+        if rename:
+            mappings = fu.FilenameMapper()
+            mappings.read_mappings(Path('file_names.csv'))
+            for f in file_list:
+                new_name = fu.find_unique_name(fu.name_from_date(f))
+                mappings.rename_and_map(f, new_name)
+            mappings.write_mappings()
     finally:
         os.chdir(old_dir)
 

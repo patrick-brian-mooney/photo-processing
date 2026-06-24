@@ -16,15 +16,17 @@ The latest version of these scripts can always be found at
 """
 
 
+import collections
 import functools
 import os
 import subprocess
 import sys
 
 from pathlib import Path
-from typing import Any, Callable, List, Literal, Optional, Sequence, Type, Union
+from typing import Any, Callable, Generator, Iterable, List, Literal, Optional, Sequence, Tuple, Type, Union
 
 import tkinter as tk
+import tkinter.ttk as ttk
 import tkinter.messagebox as tk_msgbox
 
 import tqdm                         # [sudo] pip[3] install tqdm; https://tqdm.github.io/
@@ -45,6 +47,34 @@ patrick_logger.verbosity_level = 5
 
 
 DATE_FIELDS = ('YYYY', 'MO', 'DD', 'HH', 'MM', 'SS')
+
+
+def _flatten_list(the_list: Iterable[Any]) -> Generator[Any, None, None]:
+    """Regardless of how deep the list (or other iterable) L is, yield the non-list (or
+    other iterable) atoms that compose L (and its sub-iterables, if any, to any
+    depth). No matter how deeply nested L is, the yielded elements list will not
+    contain any lists, tuples, or other iterables, but only the atoms of those lists.
+
+    For purposes of the above paragraph, strings (and bytes objects) are considered
+    to be elements, not iterables.
+
+    Note that this actually returns a generator expression, not a list; the
+    similarly named convenience wrapper flatten_list, below, may be a better choice
+    if an actual list is desired (i.e., usually).
+    """
+    for elem in the_list:
+        if isinstance(elem, collections.abc.Iterable) and not isinstance(elem, (str, bytes)):
+            for sub in _flatten_list(elem):
+                yield sub
+        else:
+            yield elem
+
+
+def flatten_list(the_list: Iterable[Any]) -> Iterable[Any]:
+    """Convenience function to wrap _flatten_list and return an actual list. More often
+    than not, this is what's desired.
+    """
+    return list(_flatten_list(the_list))
 
 
 def error_message_box(explanatory_text: str,
@@ -73,6 +103,103 @@ def trap_and_report_errors(func: Callable) -> Callable:
     return on_call
 
 
+class WrappedCheckbutton(ttk.Checkbutton):
+    """Wrapper for the Tk Checkbutton class that automatically creates the necessary
+    Tkinter variable to track its state and provides a _getval() method to get its
+    state. It also provides a _setval() method to set its state.
+    """
+    def __init__(self, *pargs, **kwargs):
+        assert 'variable' not in kwargs, ("The WrappedCheckbutton constructor cannot take a VARIABLE parameter! Use "
+                                          "a standard Tkinter Checkbutton if you want to do that.")
+        self.underlying_variable = tk.IntVar()
+        ttk.Checkbutton.__init__(self, variable=self.underlying_variable, *pargs, **kwargs)
+
+    def _getval(self) -> bool:
+        """Get the value of the widget. Annoyingly, Tkinter widgets don't all have a
+        unified name for the routine that gets the current value of the control, and
+        though several use .get(), at least one control widget uses that name to mean
+        something else, and at least one doesn't have a .get() method at all.
+        """
+        return bool(self.underlying_variable.get())
+
+    def _setval(self, value: bool = True) -> None:
+        """Set the current value of the Checkbutton to True (checked) or False (not
+        checked).
+        """
+        assert isinstance(value, bool)
+        self.underlying_variable.set(int(value))
+
+
+class WrappedCombobox(ttk.Combobox):
+    """Just a wrapper for a Combobox widget that consists a consistent interface for use
+    with dialog boxes.
+    """
+    def __init__(self, *pargs,
+                 values: Iterable[str],
+                 readonly: bool = False,
+                 only_num_entry: bool = False,
+                 **kwargs):
+        assert 'variable' not in kwargs, ("The WrappedCombobox constructor cannot take a VARIABLE parameter! "
+                                          "Use a standard Tkinter ttk.Combobox if you want to do that.")
+        assert len(values), "Must supply an iterable of options when initializing a WrappedComboxbox!"
+        assert all([isinstance(i, str) for i in values]), "Options for a WrappedCombobox must be strings!"
+
+        self.underlying_variable = tk.StringVar()
+        ttk.Combobox.__init__(self, textvariable=self.underlying_variable, *pargs, **kwargs)
+        self['values'] = tuple(values)
+        self._setval(self['values'][1])
+
+        if readonly:
+            self.state(["readonly"])
+            self.bind('<<ComboboxSelected>>', self.selection_clear)
+        elif only_num_entry:
+            self.bind('<<ComboboxSelected>>', self._validate_entry)
+
+    def _validate_entry(self, *evt) -> None:
+        try:
+            arg = int(self._getval())
+            if arg <= 1:
+                raise TypeError
+        except (TypeError,):
+            error_message_box("The value must be a positive integer!")
+            self._setval(self['values'][0])
+
+
+    def _getval(self) -> str:
+        """Get the value of the widget. Annoyingly, Tkinter widgets don't all have a
+        unified name for the routine that gets the current value of the control, and
+        though several use .get(), at least one control widget uses that name to mean
+        something else, and at least one doesn't have a .get() method at all.
+        """
+        return self.underlying_variable.get()
+
+    def _setval(self, value: Any) -> None:
+        """Set the current value of the Checkbutton to True (checked) or False (not
+        checked).
+        """
+        self.underlying_variable.set(value if isinstance(value, str) else str(value))
+
+
+class WrappedEntry(ttk.Entry):
+    """Just a wrapper for an Entry field that presents a consistent interface for use
+    with a DataGetter frame.
+    """
+    def _getval(self) -> str:
+        """Get the value of the widget. Annoyingly, Tkinter widgets don't all have a
+        unified name for the routine that gets the current value of the widget, and
+        though several use .get(), at least one control widget uses that name to mean
+        something else, and at least one doesn't have a .get() method at all.
+        """
+        return self.get()
+
+    def _setval(self, value: Any) -> None:
+        """Set the current text displayed in SELF to be the stringified version of TEXT,
+        replacing any text that's already in the widget.
+        """
+        self.delete(0, tk.END)
+        self.insert(0, str(value))
+
+
 class DateTimeAdjustDialog(tk.Frame):
     """Get a date/time combo from the user. Used in EXIF data-related situations.
     """
@@ -81,12 +208,12 @@ class DateTimeAdjustDialog(tk.Frame):
         """
         d = {f: self.new_date[f].get() for f in DATE_FIELDS}
         self.callback(int(d['YYYY']), int(d['MO']), int(d["DD"]), int(d['HH']), int(d['MM']), int(d['SS']))
-        self.master.destroy()
+        self._root().destroy()
 
     def cancel_func(self) -> None:
         """Destroy the window without doing anything else.
         """
-        self.master.destroy()
+        self._root().destroy()
 
     def __init__(self, master=None, callback=None):
         """We pack bottom-up here so that subclasses can easily add to the top of the
@@ -131,56 +258,85 @@ class MainWindow(tk.Tk):
         assert all([isinstance(f, Path) for f in file_list])
 
         self.file_list = file_list
+        self.option_add('*tearOff', tk.FALSE)
 
         self.title('Image Processing Options')
-        top_label = tk.Label(self, text=f'\nWhat would you like to do with these {len(file_list)} files?\n\n')
-        top_label.pack(side=tk.TOP, fill=tk.X)
 
-        tk.Button(self, text="Adjust timestamp(s) and rename",
-                  command=self.adjust_timestamp).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Adjust timestamp(s) without renaming",
-                  command=lambda: self.adjust_timestamp(rename=False)).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Assign timestamp(s) without renaming",
-                  command=self.set_timestamp).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Add 1 hour to timestamp(s) and rename",
-                  command=self.increment_and_rename).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Subtract 1 hour from timestamp(s) and rename",
-                  command=self.decrement_and_rename).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Delete, and delete all sidecars",
-                  command=self.delete_with_alternates).pack(side=tk.TOP, fill=tk.X)
+        top_label = tk.Label(self, text=f'What would you like to do with these {len(file_list)} files?')
+        top_label.grid(column=0, row=0, columnspan=3, sticky=(tk.W, tk.E, tk.S), pady=10)
+        self.rowconfigure(0, weight=1)
 
-        tk.Label(self, text='\n\nResize').pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Resize to 720p",
-                  command=lambda: self.resize_files(720)).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Resize to 1920p",
-                  command=lambda: self.resize_files(1920)).pack(side=tk.TOP, fill=tk.X)
+        adj_rename_btn = tk.Button(self, text="Adjust timestamp(s)", command=self.adjust_timestamp)
+        adj_rename_btn.grid(column=0, row=1, columnspan=1, sticky=(tk.W, tk.N, tk.E, tk.S))
+        self.timestamp_adj_rename_chk = WrappedCheckbutton(self, text="also rename file(s)")
+        self.timestamp_adj_rename_chk.grid(column=1, row=1, columnspan=2, sticky=(tk.W,))
 
-        tk.Label(self, text='\n\nEXIF-aware JPEG transformations').pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Rotate automatically",
-                  command=lambda: self.exif_rotate("a")).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Rotate clockwise",
-                  command=lambda: self.exif_rotate("9")).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Rotate counterclockwise",
-                  command=lambda: self.exif_rotate("2")).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Rotate 180 degrees",
-                  command=lambda: self.exif_rotate("1")).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Regenerate JPEG thumbnail",
-                  command=self.regen_thumb).pack(side=tk.TOP, fill=tk.X)
+        assign_no_rename_btn = tk.Button(self, text="Assign timestamp(s)",
+                                         command=self.set_timestamp)
+        assign_no_rename_btn.grid(column=0, row=3, columnspan=1, sticky=(tk.W, tk.N, tk.E, tk.S))
+        self.timestamp_ass_rename_chk = WrappedCheckbutton(self, text="also rename file(s)")
+        self.timestamp_ass_rename_chk.grid(column=1, row=3, columnspan=2, sticky=(tk.W,))
 
-        tk.Label(self, text='\n\nHDR and Panorama Processing').pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Create HDR script for all selected files",
-                  command=self.script_from_files).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Create HDR tonemap script(s) from corresponding raw(s)",
-                  command=self.produce_raw_scripts).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="HDR tonemap(s) from (corresponding) raw(s)",
-                  command=self.tonemap_raws).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Open (corresponding) raw(s) in Luminance",
-                  command=self.open_in_luminance).pack(side=tk.TOP, fill=tk.X)
-        tk.Button(self, text="Panorama script from all selected files",
-                  command=self.create_pano_script).pack(side=tk.TOP, fill=tk.X)
+        del_w_sidecars_btn = tk.Button(self, text="Delete, and delete all sidecars",
+                                       command=self.delete_with_alternates)
+        del_w_sidecars_btn.grid(column=0, row=6, columnspan=3, sticky=(tk.W, tk.N, tk.E, tk.S))
+
+        resize_label = tk.Label(self, text='\nResize files')
+        resize_label.grid(column=0, row=7, columnspan=3, sticky=(tk.W, tk.E, tk.S), pady=10)
+        self.rowconfigure(7, weight=1)
+
+        proportional_resize_btn = tk.Button(self, text="Resize to ", command=lambda: self.resize_files(720))
+        proportional_resize_btn.grid(column=0, row=8, sticky=(tk.W, tk.N, tk.E, tk.S))
+        self.proportional_resize_menu = WrappedCombobox(self, only_num_entry=True,
+                                                        values=('480', '720', '1080', '1440', '1920', '2160', '2272',
+                                                                '2560', '2848', '4032', '4320', '5184', '6000'))
+        tk.Label(self, text=' max. pixels').grid(column=2, row=8, sticky=(tk.S, tk.W, tk.N))
+
+        free_resize_btn = tk.Button(self, text='Free resize ...', command=self.manually_resize)
+        free_resize_btn.grid(column=0, row=9, columnspan=3, sticky=(tk.S, tk.W, tk.N, tk.E))
+
+        jpg_transform_label = tk.Label(self, text='\nEXIF-aware JPEG transformations')
+        jpg_transform_label.grid(column=0, row=10, columnspan=3, sticky=(tk.W, tk.E, tk.S), pady=10)
+        self.rowconfigure(10, weight=1)
+
+        rotate_btn = tk.Button(self, text="Rotate", command=self.exif_rotate)
+        rotate_btn.grid(column=0, row=11, columnspan=1, sticky=(tk.W, tk.N, tk.E, tk.S))
+        self.rotate_menu = WrappedCombobox(self, values=('automatically', 'clockwise',
+                                                                'counterclockwise', '180 degrees'),
+                                                        readonly=True)
+        self.rotate_menu.grid(column=1, row=11, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+        regen_thumb_btn = tk.Button(self, text="Regenerate JPEG thumbnail", command=self.regen_thumb)
+        regen_thumb_btn.grid(column=0, row=15, columnspan=3, sticky=(tk.W, tk.N, tk.E, tk.S))
+
+        hdr_label = tk.Label(self, text='\n\nHDR and Panorama Processing')
+        hdr_label.grid(column=0, row=16, columnspan=3, sticky=(tk.W, tk.E, tk.S), pady=10)
+        self.rowconfigure(16, weight=1)
+
+        hdr_script_all_btn = tk.Button(self, text="Create HDR script for all selected files",
+                                       command=self.script_from_files)
+        hdr_script_all_btn.grid(column=0, row=17, columnspan=3, sticky=(tk.W, tk.N, tk.E, tk.S))
+
+        hdr_script_from_raw_btn = tk.Button(self, text="Create HDR tonemap script(s) from corresponding raw(s)",
+                                            command=self.produce_raw_scripts)
+        hdr_script_from_raw_btn.grid(column=0, row=18, columnspan=3, sticky=(tk.W, tk.N, tk.E, tk.S))
+
+        hdr_map_from_raw_btn = tk.Button(self, text="HDR tonemap(s) from (corresponding) raw(s)",
+                                         command=self.tonemap_raws)
+        hdr_map_from_raw_btn.grid(column=0, row=19, columnspan=3, sticky=(tk.W, tk.N, tk.E, tk.S))
+
+        hdr_to_luminance_btn = tk.Button(self, text="Open (corresponding) raw(s) in Luminance",
+                                         command=self.open_in_luminance)
+        hdr_to_luminance_btn.grid(column=0, row=20, columnspan=3, sticky=(tk.W, tk.N, tk.E, tk.S))
+
+        pano_script_btn = tk.Button(self, text="Panorama script from all selected files",
+                                    command=self.create_pano_script)
+        pano_script_btn.grid(column=0, row=21, columnspan=3, sticky=(tk.W, tk.N, tk.E, tk.S))
+
+        self.columnconfigure(1, weight=1)
 
     @trap_and_report_errors
-    def adjust_timestamp(self, rename: bool = True):
+    def adjust_timestamp(self):
         """Pop up a dialog that asks the user by how much to adjust an EXIF timestamp. If
         RENAME is True (the default), the files are renamed based on their new
         timestamps after the timestamps are adjusted.
@@ -194,21 +350,21 @@ class MainWindow(tk.Tk):
             """Convenience wrapper that provides a closure to capture outer-scope values.
             """
             for f in tqdm.tqdm(self.file_list):
-                pp.adjust_timestamps([f], yr, mo, days, hr, m, s, rename=rename)
+                pp.adjust_timestamps([f], yr, mo, days, hr, m, s,
+                                     rename=self._root().timestamp_adj_rename_chk._getval())
 
-        # FIXME: we need a text label at the top telling the user what to do.
         dialog = tk.Toplevel()
-        DateTimeAdjustDialog(master=dialog, callback=do_adjust).pack()
+        tk.Label(self, text='Indicate the amount to adjust each part of the timestamp').pack(side=tk.BOTTOM, expand=tk.YES, fill=tk.X)
+        DateTimeAdjustDialog(master=dialog, callback=do_adjust).pack(expand=tk.YES, file=tk.BOTH)
         dialog.grab_set()
         dialog.focus_set()
         dialog.wait_window()
-        sys.exit()
+        dialog._root().destroy()
 
     @trap_and_report_errors
     def set_timestamp(self):
         """Pop up a dialog that asks the user what the EXIF timestamp should be.
         """
-
         def do_adjust(yr: int,
                       mo: int,
                       days: int,
@@ -218,15 +374,72 @@ class MainWindow(tk.Tk):
             """Convenience wrapper that provides a closure to capture outer-scope value.
             """
             for f in tqdm.tqdm(self.file_list):
-                pp.set_timestamps([f], yr, mo, days, hr, m, s)
+                pp.set_timestamps([f], yr, mo, days, hr, m, s,
+                                  rename=self._root().timestamp_ass_rename_chk._getval())
 
-        # FIXME: we need a text label at the top telling the user what to do.
         dialog = tk.Toplevel()
+        tk.Label(self, text='Set each part of the timestamp').pack(side=tk.BOTTOM, expand=tk.YES, fill=tk.X)
         DateTimeSetDialog(master=dialog, callback=do_adjust).pack()
         dialog.grab_set()
         dialog.focus_set()
         dialog.wait_window()
-        sys.exit()
+        dialog._root().destroy()
+
+    @trap_and_report_errors
+    def manually_resize(self):
+        """Pop up a dialog that asks the user what the EXIF timestamp should be.
+        """
+        def do_resize(height: int,
+                      width: int) -> None:
+            """Convenience wrapper that provides a closure to capture outer-scope value.
+            """
+            for f in tqdm.tqdm(self.file_list):
+                subprocess.call([photo_config.executable_location('mogrify'), '-resize',
+                                 f'{width}x{height}!', str(f)])
+
+        def do_OK() -> None:
+            try:
+                width = int(dialog.width_field._getval())
+                if width <= 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                error_message_box(f"{dialog.width_field._getval()} is not a positive integer!")
+                return
+
+            try:
+                height = int(dialog.height_field._getval())
+                if height <= 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                error_message_box(f"{dialog.height_field._getval()} is not a positive integer!")
+                return
+
+            do_resize(height, width)
+            dialog._root().destroy()
+
+        def do_cancel() -> None:
+            dialog.destroy()
+
+        dialog = tk.Toplevel()
+
+        tk.Label(dialog, text='Width: ').grid(row=0, column=0, sticky=(tk.N, tk.E, tk.S))
+        dialog.width_field = WrappedEntry(dialog)
+        dialog.width_field.grid(row=0, column=1, columnspan=2, sticky=(tk.E, tk.N, tk.W, tk.S))
+
+        tk.Label(dialog, text='Height: ').grid(row=1, column=0, sticky=(tk.N, tk.E, tk.S))
+        dialog.height_field = WrappedEntry(dialog)
+        dialog.height_field.grid(row=1, column=1, columnspan=2, sticky=(tk.N, tk.E, tk.S, tk.W))
+
+        tk.Label(dialog, text='\nFile(s) will be resized to exactly the specified\n'
+                            'size without regard for aspect ratio\n').grid(row=2, column=0, columnspan=3,
+                                                                           sticky=(tk.N, tk.E, tk.S, tk.W))
+
+        tk.Button(dialog, text='Cancel', command=do_cancel).grid(row=3, column=1, sticky=(tk.W, tk.N, tk.E, tk.S))
+        tk.Button(dialog, text='OK', command=do_OK).grid(row=3, column=2, sticky=(tk.W, tk.N, tk.E, tk.S))
+
+        dialog.grab_set()
+        dialog.focus_set()
+        dialog.wait_window()
 
     @trap_and_report_errors
     def increment_and_rename(self):
@@ -242,7 +455,7 @@ class MainWindow(tk.Tk):
             pp.increment_timestamp([f])
             # Note that increment_timestamp() will automatically rename the file
 
-        sys.exit()
+        self._root().destroy()
 
     @trap_and_report_errors
     def decrement_and_rename(self):
@@ -259,7 +472,7 @@ class MainWindow(tk.Tk):
             log_it(f"INFO: decrementing timestamp on '{f}' and renaming", 3)
             pp.decrement_timestamp([f])  # decrement_timestamp() will automatically rename the file
 
-        sys.exit()
+        self._root().destroy()
 
     @trap_and_report_errors
     def delete_with_alternates(self):
@@ -273,28 +486,33 @@ class MainWindow(tk.Tk):
                     f.with_suffix(ext).unlink()
             os.unlink(f)
 
-        sys.exit()
+        self._root().destroy()
 
     @trap_and_report_errors
-    def resize_files(self, longest_side: int):
+    def resize_files(self):
         """Proportionally resize each file in FILE_LIST so that its longest side is the
         length specified by LONGEST_SIDE.
         """
+        longest_side = int(self.proportional_resize_menu._getval())
         for f in tqdm.tqdm(self.file_list):
             subprocess.call([photo_config.executable_location('mogrify'), '-resize',
                              f'{longest_side}x{longest_side}'] + [str(f)])
-        sys.exit()
+        self._root().destroy()
 
     @trap_and_report_errors
-    def exif_rotate(self, orientation: Literal['a', '9', '2', '1']):
+    def exif_rotate(self):
         """Rotate each JPEG file in FILE_LIST to the specified ORIENTATION. ORIENTATION
         is a string constant that constitutes a command-line flag to the exiftran
         program.
         """
+        orientation = {'automatically': 'a',        # Look up the exiftran argument based on the menu value
+                       'clockwise': '9',
+                       'counterclockwise': '2',
+                       '180 degrees': '1'}[self.rotate_menu._getval()]
         for f in tqdm.tqdm(self.file_list):
             subprocess.call([photo_config.executable_location('exiftran'),
                              f'-{orientation}ig', str(f)])
-        sys.exit()
+        self._root().destroy()
 
     @trap_and_report_errors
     def regen_thumb(self):
@@ -302,7 +520,7 @@ class MainWindow(tk.Tk):
         """
         for f in tqdm.tqdm(self.file_list):
             subprocess.call([photo_config.executable_location('exiftran'), '-ig', str(f)])
-        sys.exit()
+        self._root().destroy()
 
     @trap_and_report_errors
     def tonemap_raws(self):
@@ -316,7 +534,7 @@ class MainWindow(tk.Tk):
                 log_it(f"INFO: identified raw photo: {raw_file}", 3)
                 Hfr.hdr_tonemap_from_raw(raw_file)
 
-        sys.exit()
+        self._root().destroy()
 
     @trap_and_report_errors
     def produce_raw_scripts(self):
@@ -334,7 +552,7 @@ class MainWindow(tk.Tk):
                 log_it("INFO: identified raw photo: {raw_file}", 3)
                 _ = Hfr.create_hdr_script(raw_file)
 
-        sys.exit()
+        self._root().destroy()
 
     @trap_and_report_errors
     def script_from_files(self):
@@ -342,23 +560,23 @@ class MainWindow(tk.Tk):
         convenience wrapper for an external function.
         """
         cHs.create_script_from_file_list(self.file_list)
-        sys.exit()
+        self._root().destroy()
 
     @trap_and_report_errors
     def open_in_luminance(self):
         """Create an HDR script from selected files. This function is just a
         convenience wrapper for an external function.
         """
-        raws = [fu.find_alt_version(x, fu.raw_photo_extensions) for x in self.file_list]
+        raws = flatten_list([fu.find_alt_version(x, fu.raw_photo_extensions) for x in self.file_list])
         subprocess.call([photo_config.executable_location('luminance-hdr')] + raws)
-        sys.exit()
+        self._root().destroy()
 
     @trap_and_report_errors
     def create_pano_script(self):
         """Creates a default panorama-creation script from the selected files.
         """
         cps.produce_script(self.file_list)
-        sys.exit()
+        self._root().destroy()
 
 
 force_debug = False
@@ -368,11 +586,12 @@ force_debug = False
 def startup() -> List[Path]:
     photo_config.startup()              # Check that the system meets minimum requirements; find necessary executables
     if force_debug:
-        import glob
+        # import glob
         # sys.argv[1:] = glob.glob('/home/patrick/Photos/2024-11-14/canon/*cr2')
-        sys.argv.append("/home/patrick/Photos/2024-11-14/2024-11-10_13_50_29_1.cr2")
+        # sys.argv.append("/home/patrick/Photos/2024-11-14/2024-11-10_13_50_29_1.cr2")
+        sys.argv.append("/tmp/13d1b0d6-931b-46ae-9088-f7a22ead1ccd (1).png")
 
-    file_list = [Path(f) for f in sys.argv[1:]]
+    file_list = sorted([Path(f) for f in sys.argv[1:]], key=str)
     log_it(f"OK, we're starting, and operating on {len(file_list)} files", 2)
     log_it(f"Those files are: {file_list}", 4)
 
